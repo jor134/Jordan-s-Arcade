@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/coldwake/:path*",  "destination": "https://coldwake-seven.vercel.app/:path*" },
+    { "source": "/deepfall/:path*",  "destination": "https://deepfall-vr-1.vercel.app/:path*" },
+    { "source": "/saltbone/:path*",  "destination": "https://rust-bone.vercel.app/:path*" },
+    { "source": "/flint/:path*",     "destination": "https://flint-and-fire.vercel.app/:path*" },
+    { "source": "/renegade/:path*",  "destination": "https://strikeforce-two.vercel.app/:path*" },
+    { "source": "/turbo/:path*",     "destination": "https://turbo-critters.vercel.app/:path*" },
+    { "source": "/dinger/:path*",    "destination": "https://dinger-derby-ten.vercel.app/:path*" },
+    { "source": "/coldstore/:path*", "destination": "https://coldstore-five.vercel.app/:path*" },
+    { "source": "/wildmoor/:path*",  "destination": "https://wildmoor-links.vercel.app/:path*" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Permissions-Policy", "value": "xr-spatial-tracking=(self), gamepad=(self), fullscreen=(self)" }
+      ]
+    }
+  ]
+}

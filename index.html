@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>THE BACK ROOM — nine games, one hall</title>
+<meta name="description" content="A walk-in arcade hall linking nine browser games: DEEPFALL VR, SALTBONE, FLINT &amp; FIRE, RENEGADE FRONT, TURBO CRITTERS, DINGER DERBY, COLDWAKE, COLDSTORE and WILDMOOR LINKS.">
+<meta name="theme-color" content="#12161c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Back Room">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12161c;
+    --wall:#22343a;
+    --carpet:#2b1a38;
+    --sodium:#ffb454;
+    --coral:#ff6b53;
+    --bone:#f2e9dc;
+    --dim:#8a9199;
+    --display:"Big Shoulders Display","Haettenschweiler","Arial Narrow",Impact,sans-serif;
+    --mono:"DM Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --safeb:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);color:var(--bone)}
+  body{font-family:var(--mono);-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+  canvas{display:block;touch-action:none}
+  #hall{position:fixed;inset:0}
+
+  /* ---------- boot ---------- */
+  #boot{position:fixed;inset:0;z-index:60;background:var(--ink);display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:18px;transition:opacity .5s ease}
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot h1{font-family:var(--display);font-weight:800;font-size:clamp(44px,13vw,104px);letter-spacing:.02em;
+           margin:0;line-height:.86;color:var(--sodium);text-align:center}
+  #boot h1 em{display:block;font-style:normal;color:var(--bone)}
+  #boot p{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin:0}
+  #bar{width:min(240px,54vw);height:2px;background:#2a3138;overflow:hidden}
+  #bar i{display:block;height:100%;width:0;background:var(--sodium);transition:width .3s linear}
+
+  /* ---------- hud ---------- */
+  #hud{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:0 14px calc(14px + var(--safeb));
+       pointer-events:none;display:flex;justify-content:center}
+  #card{pointer-events:auto;width:min(560px,100%);background:rgba(18,22,28,.82);
+        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+        border:1px solid rgba(242,233,220,.14);border-top:2px solid var(--sodium);
+        padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+        transform:translateY(140%);transition:transform .28s cubic-bezier(.2,.8,.3,1)}
+  #card.up{transform:none}
+  #card .no{font-size:10px;letter-spacing:.24em;color:var(--sodium)}
+  #card h2{font-family:var(--display);font-weight:800;font-size:clamp(26px,7vw,38px);margin:2px 0 1px;
+           line-height:.9;letter-spacing:.01em}
+  #card p{margin:0;font-size:12px;color:var(--dim);letter-spacing:.04em}
+  #play{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.06em;
+        background:var(--sodium);color:#141017;border:0;padding:14px 20px 11px;cursor:pointer;
+        white-space:nowrap;line-height:1}
+  #play:active{transform:translateY(1px)}
+
+  /* ---------- top bar ---------- */
+  #top{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;
+       align-items:flex-start;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 0;pointer-events:none}
+  #sign{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:.06em;line-height:1;
+        color:var(--bone);opacity:.86}
+  #sign span{display:block;font-family:var(--mono);font-weight:400;font-size:9px;letter-spacing:.24em;
+             color:var(--dim);margin-top:4px}
+  #tools{display:flex;gap:8px;pointer-events:auto}
+  .tool{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+        background:rgba(18,22,28,.7);color:var(--bone);border:1px solid rgba(242,233,220,.18);
+        padding:9px 11px;cursor:pointer}
+  .tool[hidden]{display:none}
+  .tool:hover{border-color:var(--sodium);color:var(--sodium)}
+
+  /* ---------- hint ---------- */
+  #hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:15;text-align:center;
+        font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);pointer-events:none;
+        transition:opacity .6s ease;text-shadow:0 2px 10px #000}
+  #hint.gone{opacity:0}
+
+  /* ---------- list ---------- */
+  #list{position:fixed;inset:0;z-index:40;background:var(--ink);overflow-y:auto;padding:0 0 40px;
+        display:none}
+  #list.on{display:block}
+  #list header{padding:calc(20px + env(safe-area-inset-top,0px)) 20px 16px;display:flex;
+               justify-content:space-between;align-items:center;gap:16px;
+               border-bottom:1px solid rgba(242,233,220,.12)}
+  #list h2{font-family:var(--display);font-weight:800;font-size:30px;margin:0;letter-spacing:.02em}
+  #list ol{list-style:none;margin:0;padding:0}
+  #list li{border-bottom:1px solid rgba(242,233,220,.09)}
+  #list a{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
+          padding:18px 20px;text-decoration:none;color:var(--bone)}
+  #list a:hover,#list a:focus-visible{background:rgba(255,180,84,.08);outline:none}
+  #list a:focus-visible{box-shadow:inset 3px 0 0 var(--sodium)}
+  #list .swatch{width:8px;height:38px}
+  #list .t{font-family:var(--display);font-weight:800;font-size:24px;line-height:.95}
+  #list .d{font-size:11px;color:var(--dim);letter-spacing:.05em;margin-top:3px}
+  #list .go{font-size:10px;letter-spacing:.2em;color:var(--sodium)}
+  #note{padding:22px 20px 0;font-size:11px;line-height:1.7;color:var(--dim);max-width:640px}
+
+  /* ---------- launch card (VR exit) ---------- */
+  #launch{position:fixed;inset:0;z-index:50;background:rgba(10,13,17,.94);display:none;
+          align-items:center;justify-content:center;padding:24px}
+  #launch.on{display:flex}
+  #launch div{text-align:center;max-width:340px}
+  #launch h3{font-family:var(--display);font-weight:800;font-size:40px;margin:0 0 8px;line-height:.9}
+  #launch p{font-size:12px;color:var(--dim);line-height:1.7;margin:0 0 22px}
+  #launch button{margin:0 6px}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="hall" aria-hidden="true"></div>
+
+<div id="top">
+  <div id="sign">THE BACK ROOM<span>NINE MACHINES · ALWAYS ON FREE PLAY</span></div>
+  <div id="tools">
+    <button class="tool" id="btnVR" hidden>Enter VR</button>
+    <button class="tool" id="btnList">All games</button>
+  </div>
+</div>
+
+<div id="hint">Drag to walk · tap a machine</div>
+
+<div id="hud"><div id="card">
+  <div>
+    <div class="no" id="cNo">MACHINE 01</div>
+    <h2 id="cTitle">—</h2>
+    <p id="cTag">—</p>
+  </div>
+  <button id="play">PLAY</button>
+</div></div>
+
+<div id="list" role="dialog" aria-label="All games">
+  <header><h2>All games</h2><button class="tool" id="btnClose">Back to the hall</button></header>
+  <ol id="listItems"></ol>
+  <p id="note"></p>
+</div>
+
+<div id="launch"><div>
+  <h3 id="lTitle">—</h3>
+  <p>The headset can't open a game while you're in the hall. Session ended — open it now.</p>
+  <button class="tool" id="lGo">Open game</button>
+  <button class="tool" id="lNo">Stay here</button>
+</div></div>
+
+<div id="boot">
+  <h1>THE BACK<em>ROOM</em></h1>
+  <p id="bootMsg">Warming the machines</p>
+  <div id="bar"><i id="barFill"></i></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ==================================================================
+   1. CONFIG — flip LINK_MODE to 'proxy' after you add vercel.json
+   ================================================================== */
+var LINK_MODE = 'external';           // 'external' | 'proxy'
+
+var GAMES = [
+  { id:'coldwake',  title:'COLDWAKE',       tag:'Co-op survival shooter · derelict ship',
+    ext:'https://coldwake-seven.vercel.app/',   path:'/coldwake/',
+    screen:'#7fd4ff', side:'#1d3a52', art:'hull' },
+
+  { id:'deepfall',  title:'DEEPFALL VR',    tag:'PvPvE space extraction · hand tracking',
+    ext:'https://deepfall-vr-1.vercel.app/',    path:'/deepfall/',
+    screen:'#9d8bff', side:'#241c46', art:'stars' },
+
+  { id:'saltbone',  title:'SALTBONE',       tag:'PvEvP island survival · build a fort',
+    ext:'https://rust-bone.vercel.app/',        path:'/saltbone/',
+    screen:'#57e0c0', side:'#123a38', art:'tide' },
+
+  { id:'flint',     title:'FLINT & FIRE',   tag:'Stone Age RTS · eight ages, co-op',
+    ext:'https://flint-and-fire.vercel.app/',   path:'/flint/',
+    screen:'#ff9d3d', side:'#4a2412', art:'ember' },
+
+  { id:'renegade',  title:'RENEGADE FRONT', tag:'2-player run &amp; gun · phone-to-phone',
+    ext:'https://strikeforce-two.vercel.app/',  path:'/renegade/',
+    screen:'#8fe36a', side:'#1e3a1c', art:'jungle' },
+
+  { id:'turbo',     title:'TURBO CRITTERS', tag:'Kart racing · six critters, eight players',
+    ext:'https://turbo-critters.vercel.app/',   path:'/turbo/',
+    screen:'#ff7ab8', side:'#4a1436', art:'track' },
+
+  { id:'dinger',    title:'DINGER DERBY',   tag:'Home run derby · cel-shaded',
+    ext:'https://dinger-derby-ten.vercel.app/', path:'/dinger/',
+    screen:'#ffe066', side:'#3f3410', art:'arc' },
+
+  { id:'coldstore', title:'COLDSTORE',      tag:'Rail shooter · three floors, three bosses',
+    ext:'https://coldstore-five.vercel.app/',   path:'/coldstore/',
+    screen:'#ff5f5f', side:'#4a1418', art:'sight' },
+
+  { id:'wildmoor',  title:'WILDMOOR LINKS', tag:'18-hole links golf · procedural',
+    ext:'https://wildmoor-links.vercel.app/',   path:'/wildmoor/',
+    screen:'#a8e05f', side:'#1c3a1e', art:'links' }
+];
+
+function urlFor(g){ return LINK_MODE === 'proxy' ? g.path : g.ext; }
+
+var SPACING = 3.3;
+var REACH   = 1.7;
+var HALF    = (GAMES.length - 1) * SPACING / 2;
+var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+var $ = function(id){ return document.getElementById(id); };
+
+/* ==================================================================
+   2. LIST VIEW — real anchors, works with zero WebGL
+   ================================================================== */
+(function buildList(){
+  var ol = $('listItems'), html = '';
+  for (var i=0;i<GAMES.length;i++){
+    var g = GAMES[i];
+    html += '<li><a href="'+urlFor(g)+'" target="_blank" rel="noopener">'
+          + '<span class="swatch" style="background:'+g.screen+'"></span>'
+          + '<span><span class="t">'+g.title+'</span><span class="d">'+g.tag+'</span></span>'
+          + '<span class="go">OPEN &#8599;</span></a></li>';
+  }
+  ol.innerHTML = html;
+  $('note').innerHTML = 'Every machine opens in its own tab. Install any of them from its own '
+    + 'menu to run it full screen off your home screen.';
+})();
+
+function showList(on){ $('list').classList.toggle('on', on); }
+$('btnList').onclick = function(){ showList(true); };
+$('btnClose').onclick = function(){ showList(false); };
+
+/* ==================================================================
+   3. TEXTURES — carpet, breeze block, light pool, marquees, screens
+   ================================================================== */
+function cvs(w,h){ var c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+
+function carpetTex(){
+  var c = cvs(256,256), x = c.getContext('2d');
+  x.fillStyle = '#2b1a38'; x.fillRect(0,0,256,256);
+  var cols = ['#ffb454','#57c9c0','#ff6b53','#f2e9dc'];
+  for (var i=0;i<70;i++){
+    x.fillStyle = cols[i%4];
+    x.globalAlpha = 0.16 + (i%5)*0.03;
+    var px = Math.random()*256, py = Math.random()*256, s = 3+Math.random()*11;
+    x.save(); x.translate(px,py); x.rotate(Math.random()*3.14);
+    if (i%3===0) x.fillRect(-s/2,-1.5,s,3);
+    else if (i%3===1){ x.beginPath(); x.arc(0,0,s*0.28,0,6.3); x.fill(); }
+    else { x.beginPath(); x.moveTo(-s/2,s/3); x.lineTo(0,-s/3); x.lineTo(s/2,s/3); x.fill(); }
+    x.restore();
+  }
+  x.globalAlpha = 1;
+  var t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(14,5);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+
+function blockTex(){
+  var c = cvs(256,256), x = c.getContext('2d');
+  x.fillStyle = '#22343a'; x.fillRect(0,0,256,256);
+  x.strokeStyle = '#182a2f'; x.lineWidth = 4;
+  for (var r=0;r<4;r++){
+    var off = (r%2)*64;
+    for (var q=-1;q<4;q++) x.strokeRect(q*128+off, r*64, 128, 64);
+  }
+  x.fillStyle = 'rgba(0,0,0,.16)';
+  for (var i=0;i<160;i++) x.fillRect(Math.random()*256,Math.random()*256,2,2);
+  var t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(9,2);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+
+function poolTex(){
+  var c = cvs(128,128), x = c.getContext('2d');
+  var gr = x.createRadialGradient(64,64,2,64,64,62);
+  gr.addColorStop(0,'rgba(255,255,255,.85)');
+  gr.addColorStop(.45,'rgba(255,255,255,.22)');
+  gr.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle = gr; x.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+}
+
+function marqueeTex(g){
+  var c = cvs(512,148), x = c.getContext('2d');
+  function draw(){
+    x.clearRect(0,0,512,148);
+    x.fillStyle = '#0e1116'; x.fillRect(0,0,512,148);
+    var gr = x.createLinearGradient(0,0,0,148);
+    gr.addColorStop(0, g.screen); gr.addColorStop(1, g.side);
+    x.globalAlpha = .9; x.fillStyle = gr; x.fillRect(0,0,512,148); x.globalAlpha = 1;
+    x.fillStyle = 'rgba(0,0,0,.34)'; x.fillRect(0,110,512,38);
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    var size = 78, name = g.title.replace('&amp;','&');
+    x.font = '800 '+size+'px "Big Shoulders Display", Impact, sans-serif';
+    while (x.measureText(name).width > 470 && size > 30){
+      size -= 3; x.font = '800 '+size+'px "Big Shoulders Display", Impact, sans-serif';
+    }
+    x.fillStyle = 'rgba(0,0,0,.55)'; x.fillText(name, 258, 62);
+    x.fillStyle = '#fdf6ec'; x.fillText(name, 256, 59);
+    x.font = '500 17px "DM Mono", monospace';
+    x.fillStyle = 'rgba(255,255,255,.72)';
+    x.fillText('FREE PLAY', 256, 130);
+    tex.needsUpdate = true;
+  }
+  var tex = new THREE.CanvasTexture(c);
+  tex.encoding = THREE.sRGBEncoding;
+  draw();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+  return tex;
+}
+
+/* ---- attract loops: one tiny procedural animation per game ---- */
+var ART = {
+  stars: function(x,w,h,t,g){
+    x.fillStyle='#080614'; x.fillRect(0,0,w,h);
+    for (var i=0;i<46;i++){
+      var s=(i*97%w), sy=(i*53%h), z=(i%4)+1;
+      var px=(s - t*22*z) % w; if (px<0) px+=w;
+      x.fillStyle='rgba(200,190,255,'+(0.2*z/4+0.12)+')';
+      x.fillRect(px,sy,z*0.7,0.9);
+    }
+    var by=h*0.6+Math.sin(t*1.1)*7;
+    x.fillStyle=g.screen; x.globalAlpha=.9;
+    x.beginPath(); x.moveTo(w*.3,by); x.lineTo(w*.62,by-9); x.lineTo(w*.72,by);
+    x.lineTo(w*.6,by+8); x.closePath(); x.fill(); x.globalAlpha=1;
+  },
+  tide: function(x,w,h,t,g){
+    var gr=x.createLinearGradient(0,0,0,h);
+    gr.addColorStop(0,'#0d2b30'); gr.addColorStop(1,'#061417');
+    x.fillStyle=gr; x.fillRect(0,0,w,h);
+    for (var l=0;l<4;l++){
+      x.beginPath(); x.moveTo(0,h);
+      for (var i=0;i<=w;i+=6){
+        var y=h*0.55+l*13+Math.sin(i*0.045+t*1.4+l)*4;
+        x.lineTo(i,y);
+      }
+      x.lineTo(w,h); x.closePath();
+      x.fillStyle='rgba(87,224,192,'+(0.1+l*0.09)+')'; x.fill();
+    }
+    x.fillStyle='#04100f';
+    x.fillRect(w*.16,h*.2,3,h*.42);
+    x.beginPath(); x.arc(w*.175,h*.2,11,0,6.3); x.fill();
+  },
+  ember: function(x,w,h,t,g){
+    x.fillStyle='#170b06'; x.fillRect(0,0,w,h);
+    for (var i=0;i<26;i++){
+      var px=w*.5+Math.sin(i*2.3+t)*16, py=h - ((t*30+i*11)%h);
+      x.fillStyle='rgba(255,'+(120+(i*7)%110)+',60,'+(py/h*0.7)+')';
+      x.fillRect(px,py,2,2);
+    }
+    var f=6+Math.sin(t*7)*2;
+    x.fillStyle=g.screen;
+    x.beginPath(); x.moveTo(w*.5,h*.55-f*2); x.lineTo(w*.5+f,h*.78); x.lineTo(w*.5-f,h*.78); x.closePath(); x.fill();
+    x.strokeStyle='#5b3018'; x.lineWidth=3;
+    x.beginPath(); x.moveTo(w*.42,h*.82); x.lineTo(w*.58,h*.74); x.moveTo(w*.58,h*.82); x.lineTo(w*.42,h*.74); x.stroke();
+  },
+  jungle: function(x,w,h,t,g){
+    x.fillStyle='#0a1a0c'; x.fillRect(0,0,w,h);
+    for (var l=0;l<3;l++){
+      var off=(t*(12+l*16))%w;
+      x.fillStyle='rgba(30,'+(70+l*30)+',34,1)';
+      for (var i=-1;i<6;i++){
+        var px=i*(w/4)-off+l*13;
+        x.beginPath(); x.moveTo(px,h); x.lineTo(px+18,h*(0.42+l*0.1)); x.lineTo(px+36,h); x.fill();
+      }
+    }
+    x.fillStyle='#0a0f08'; x.fillRect(w*.44,h*.5,7,h*.34);
+    if (Math.sin(t*9)>0.4){ x.fillStyle=g.screen; x.beginPath(); x.arc(w*.56,h*.58,4,0,6.3); x.fill(); }
+  },
+  track: function(x,w,h,t,g){
+    x.fillStyle='#1c0a2a'; x.fillRect(0,0,w,h);
+    x.fillStyle='#3a1250'; x.beginPath();
+    x.moveTo(w*.5,h*.34); x.lineTo(w*1.15,h); x.lineTo(-w*.15,h); x.closePath(); x.fill();
+    for (var i=0;i<9;i++){
+      var p=((i/9)+ (t*0.5)%(1/9)*9/9 + t*0.28)%1, sc=p*p;
+      var y=h*.34+sc*h*.66, hw=(w*.06+sc*w*.62);
+      x.fillStyle= i%2 ? 'rgba(255,122,184,.75)':'rgba(242,233,220,.5)';
+      x.fillRect(w*.5-hw,y,hw*2,1+sc*4);
+    }
+    x.fillStyle=g.screen; x.fillRect(w*.44,h*.78,w*.12,h*.09);
+  },
+  arc: function(x,w,h,t,g){
+    x.fillStyle='#0b1a10'; x.fillRect(0,0,w,h);
+    x.fillStyle='#16402260'; x.fillRect(0,h*.62,w,h*.38);
+    x.strokeStyle='rgba(255,224,102,.28)'; x.lineWidth=1;
+    x.beginPath();
+    for (var i=0;i<=w;i+=4){ var p=i/w; x.lineTo(i, h*.72 - Math.sin(p*3.14)*h*.5); }
+    x.stroke();
+    var q=(t*0.4)%1;
+    x.fillStyle=g.screen;
+    x.beginPath(); x.arc(q*w, h*.72-Math.sin(q*3.14)*h*.5, 3.4,0,6.3); x.fill();
+  },
+  hull: function(x,w,h,t,g){
+    x.fillStyle='#060d14'; x.fillRect(0,0,w,h);
+    for (var i=0;i<7;i++){
+      var d=(i+ (t*0.35)%1)/7, sc=1-d;
+      x.strokeStyle='rgba(127,212,255,'+(0.1+sc*0.4)+')'; x.lineWidth=1;
+      var iw=w*.5*sc, ih=h*.5*sc;
+      x.strokeRect(w/2-iw, h/2-ih, iw*2, ih*2);
+    }
+    if (Math.sin(t*2.2)>0.55){
+      x.fillStyle='rgba(255,95,95,.16)'; x.fillRect(0,0,w,h);
+    }
+    x.fillStyle='#0b141c'; x.fillRect(0,h*.86,w,h*.14);
+  },
+  sight: function(x,w,h,t,g){
+    x.fillStyle='#0c1408'; x.fillRect(0,0,w,h);
+    for (var i=0;i<5;i++){
+      var d=((t*0.3)+i/5)%1;
+      x.fillStyle='rgba(90,140,70,'+(0.15+d*0.3)+')';
+      var s=6+d*40; x.fillRect(w*.5-s/2+ (i-2)*22*d, h*.5-s/2, s, s*1.3);
+    }
+    var cx=w*.5+Math.sin(t*1.7)*w*.22, cy=h*.5+Math.cos(t*1.3)*h*.16;
+    x.strokeStyle=g.screen; x.lineWidth=1.6;
+    x.beginPath(); x.arc(cx,cy,9,0,6.3); x.stroke();
+    x.beginPath(); x.moveTo(cx-15,cy); x.lineTo(cx-4,cy); x.moveTo(cx+4,cy); x.lineTo(cx+15,cy);
+    x.moveTo(cx,cy-15); x.lineTo(cx,cy-4); x.moveTo(cx,cy+4); x.lineTo(cx,cy+15); x.stroke();
+  },
+  links: function(x,w,h,t,g){
+    var gr=x.createLinearGradient(0,0,0,h);
+    gr.addColorStop(0,'#1c3350'); gr.addColorStop(.45,'#3d5f43'); gr.addColorStop(1,'#20401f');
+    x.fillStyle=gr; x.fillRect(0,0,w,h);
+    for (var l=0;l<3;l++){
+      x.beginPath(); x.moveTo(0,h);
+      for (var i=0;i<=w;i+=8) x.lineTo(i, h*(0.5+l*0.14) + Math.sin(i*0.03+l*2+t*0.4)*6);
+      x.lineTo(w,h); x.closePath();
+      x.fillStyle='rgba(168,224,95,'+(0.12+l*0.1)+')'; x.fill();
+    }
+    var fy=h*.52;
+    x.strokeStyle='#e8e2d2'; x.lineWidth=1.4;
+    x.beginPath(); x.moveTo(w*.72,fy); x.lineTo(w*.72,fy-26); x.stroke();
+    var fl=Math.sin(t*3)*3;
+    x.fillStyle='#ff6b53';
+    x.beginPath(); x.moveTo(w*.72,fy-26); x.lineTo(w*.72+13+fl,fy-21); x.lineTo(w*.72,fy-16); x.fill();
+  }
+};
+
+/* ==================================================================
+   4. SCENE
+   ================================================================== */
+var renderer, scene, camera, clock, rig, focusLight;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias:!isMobile(), powerPreference:'high-performance' });
+} catch(e){ renderer = null; }
+
+function isMobile(){ return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent); }
+
+
+function start(){
+  var host = $('hall');
+  renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile() ? 2 : 2.5));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.xr.enabled = true;
+  host.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b0e13);
+  scene.fog = new THREE.Fog(0x0b0e13, 10, 46);
+
+  camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 120);
+  rig = new THREE.Group();
+  rig.add(camera);
+  scene.add(rig);
+
+  clock = new THREE.Clock();
+
+  scene.add(new THREE.HemisphereLight(0x5d7a86, 0x160f1c, 0.55));
+  var key = new THREE.DirectionalLight(0xffc98a, 0.5);
+  key.position.set(3, 9, 7); scene.add(key);
+  focusLight = new THREE.PointLight(0xffffff, 1.2, 9, 2);
+  focusLight.position.set(0, 2.4, 2); scene.add(focusLight);
+
+  // floor
+  var floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(HALF*2 + 26, 48),
+    new THREE.MeshLambertMaterial({ map: carpetTex() })
+  );
+  floor.rotation.x = -Math.PI/2; floor.position.z = 12; scene.add(floor);
+
+  // back wall
+  var wall = new THREE.Mesh(
+    new THREE.PlaneGeometry(HALF*2 + 22, 7),
+    new THREE.MeshLambertMaterial({ map: blockTex() })
+  );
+  wall.position.set(0, 3.5, -2.6); scene.add(wall);
+
+  // ceiling
+  var ceil = new THREE.Mesh(
+    new THREE.PlaneGeometry(HALF*2 + 26, 48),
+    new THREE.MeshBasicMaterial({ color:0x0c0f14 })
+  );
+  ceil.rotation.x = Math.PI/2; ceil.position.set(0, 6.4, 12); scene.add(ceil);
+
+  // sodium ceiling strips
+  var stripGeo = new THREE.PlaneGeometry(2.4, 0.16);
+  var stripMat = new THREE.MeshBasicMaterial({ color:0xffb454 });
+  for (var s=-HALF-2; s<=HALF+2; s+=6.6){
+    var st = new THREE.Mesh(stripGeo, stripMat);
+    st.rotation.x = Math.PI/2; st.position.set(s, 6.32, 1.2); scene.add(st);
+  }
+
+  // rope barrier posts along the front edge
+  var postGeo = new THREE.CylinderGeometry(0.05,0.05,0.85,7);
+  var postMat = new THREE.MeshLambertMaterial({ color:0x2a2f36 });
+  var ropeMat = new THREE.MeshLambertMaterial({ color:0x6d2233 });
+  for (var p=-HALF-1.6; p<=HALF+1.6; p+=4.4){
+    var po = new THREE.Mesh(postGeo, postMat); po.position.set(p, 0.42, 4.2); scene.add(po);
+    var rp = new THREE.Mesh(new THREE.BoxGeometry(4.4,0.07,0.07), ropeMat);
+    rp.position.set(p+2.2, 0.76, 4.2); scene.add(rp);
+  }
+
+  buildCabinets();
+  buildAvatar();
+  buildXR();
+  reframe();
+
+  $('hint').textContent = ('ontouchstart' in window)
+    ? 'Drag to walk \u00b7 tap a machine'
+    : '\u2190 \u2192 to walk \u00b7 Enter to play';
+  addEventListener('resize', onResize);
+  bindInput();
+  renderer.setAnimationLoop(tick);
+
+  // boot sequence
+  var f=0, iv=setInterval(function(){
+    f+=Math.random()*26+9;
+    $('barFill').style.width = Math.min(100,f)+'%';
+    if (f>=100){
+      clearInterval(iv);
+      $('boot').classList.add('gone');
+      setTimeout(function(){ $('hint').classList.add('gone'); }, 5200);
+    }
+  }, 130);
+}
+
+/* ---------- cabinets ---------- */
+var cabs = [], hitboxes = [], poolMap = poolTex();
+var geoBase   = new THREE.BoxGeometry(1.5, 1.9, 1.05);
+var geoUpper  = new THREE.BoxGeometry(1.5, 1.55, 0.86);
+var geoPanel  = new THREE.BoxGeometry(1.5, 0.12, 0.62);
+var geoTop    = new THREE.BoxGeometry(1.56, 0.2, 0.9);
+var geoBezel  = new THREE.BoxGeometry(1.3, 1.02, 0.06);
+var geoScreen = new THREE.PlaneGeometry(1.16, 0.87);
+var geoMarq   = new THREE.PlaneGeometry(1.42, 0.41);
+var geoPool   = new THREE.PlaneGeometry(3.4, 2.8);
+var geoShadow = new THREE.PlaneGeometry(2.0, 1.3);
+var darkMat   = new THREE.MeshLambertMaterial({ color:0x14181e });
+
+function buildCabinets(){
+  for (var i=0;i<GAMES.length;i++){
+    var g = GAMES[i];
+    var group = new THREE.Group();
+    group.position.x = -HALF + i*SPACING;
+    group.position.z = -0.9;
+
+    var sideMat = new THREE.MeshLambertMaterial({ color:new THREE.Color(g.side) });
+
+    var base = new THREE.Mesh(geoBase, sideMat);  base.position.y = 0.95;  group.add(base);
+    var up   = new THREE.Mesh(geoUpper, sideMat); up.position.set(0,2.78,-0.1); group.add(up);
+    var top  = new THREE.Mesh(geoTop, darkMat);   top.position.set(0,3.63,-0.08); group.add(top);
+
+    var panel = new THREE.Mesh(geoPanel, darkMat);
+    panel.position.set(0, 1.95, 0.35); panel.rotation.x = -0.36; group.add(panel);
+
+    // joystick + buttons
+    var stick = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.035,0.17,6), darkMat);
+    stick.position.set(-0.42, 2.06, 0.36); group.add(stick);
+    var ball = new THREE.Mesh(new THREE.SphereGeometry(0.055,8,6),
+      new THREE.MeshLambertMaterial({ color:0xd9432f }));
+    ball.position.set(-0.42, 2.15, 0.36); group.add(ball);
+    for (var b=0;b<3;b++){
+      var btn = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.03,8),
+        new THREE.MeshLambertMaterial({ color: b===1 ? 0xffb454 : 0xf2e9dc }));
+      btn.position.set(0.16 + b*0.17, 2.03 + b*0.005, 0.35 - b*0.02);
+      btn.rotation.x = -0.36; group.add(btn);
+    }
+
+    var bez = new THREE.Mesh(geoBezel, darkMat);
+    bez.position.set(0, 2.62, 0.35); group.add(bez);
+
+    // animated screen
+    var sc = cvs(256,192);
+    var sctx = sc.getContext('2d');
+    var stex = new THREE.CanvasTexture(sc);
+    stex.encoding = THREE.sRGBEncoding;
+    var screen = new THREE.Mesh(geoScreen, new THREE.MeshBasicMaterial({ map:stex }));
+    screen.position.set(0, 2.62, 0.39); group.add(screen);
+
+    var marq = new THREE.Mesh(geoMarq, new THREE.MeshBasicMaterial({
+      map: marqueeTex(g), transparent:false }));
+    marq.position.set(0, 3.42, 0.33); group.add(marq);
+
+    // floor light pool, tinted per machine
+    var pool = new THREE.Mesh(geoPool, new THREE.MeshBasicMaterial({
+      map:poolMap, color:new THREE.Color(g.screen), transparent:true,
+      opacity:0.13, blending:THREE.AdditiveBlending, depthWrite:false }));
+    pool.rotation.x = -Math.PI/2; pool.position.set(0, 0.02, 0.9); group.add(pool);
+
+    var sh = new THREE.Mesh(geoShadow, new THREE.MeshBasicMaterial({
+      color:0x000000, transparent:true, opacity:0.42, depthWrite:false }));
+    sh.rotation.x = -Math.PI/2; sh.position.set(0,0.01,0); group.add(sh);
+
+    var hit = new THREE.Mesh(new THREE.BoxGeometry(2.0,4.0,1.6),
+      new THREE.MeshBasicMaterial({ visible:false }));
+    hit.position.set(0,2,0); hit.userData.index = i; group.add(hit);
+    hitboxes.push(hit);
+
+    scene.add(group);
+    cabs.push({ g:g, group:group, ctx:sctx, tex:stex, pool:pool, marq:marq,
+                x:group.position.x, last:0, frame:0 });
+    ART[g.art](sctx, 256, 192, 0, g);
+    stex.needsUpdate = true;
+  }
+}
+
+/* ---------- avatar ---------- */
+var avatar, legL, legR, walkPhase = 0;
+function buildAvatar(){
+  avatar = new THREE.Group();
+  var mat = new THREE.MeshLambertMaterial({ color:0x161b21 });
+  var torso = new THREE.Mesh(new THREE.BoxGeometry(0.34,0.5,0.24), mat);
+  torso.position.y = 1.02; avatar.add(torso);
+  var head = new THREE.Mesh(new THREE.BoxGeometry(0.22,0.24,0.22), mat);
+  head.position.y = 1.4; avatar.add(head);
+  var armGeo = new THREE.BoxGeometry(0.1,0.42,0.1);
+  var aL = new THREE.Mesh(armGeo, mat); aL.position.set(-0.24,1.02,0.02); avatar.add(aL);
+  var aR = new THREE.Mesh(armGeo, mat); aR.position.set( 0.24,1.02,0.02); avatar.add(aR);
+  var legGeo = new THREE.BoxGeometry(0.13,0.62,0.14);
+  legGeo.translate(0,-0.31,0);
+  legL = new THREE.Mesh(legGeo, mat); legL.position.set(-0.09,0.76,0); avatar.add(legL);
+  legR = new THREE.Mesh(legGeo, mat); legR.position.set( 0.09,0.76,0); avatar.add(legR);
+  var sh = new THREE.Mesh(new THREE.PlaneGeometry(0.7,0.5), new THREE.MeshBasicMaterial({
+    map:poolMap, color:0x000000, transparent:true, opacity:0.5, depthWrite:false }));
+  sh.rotation.x = -Math.PI/2; sh.position.y = 0.015; avatar.add(sh);
+  avatar.position.set(0,0,1.5);
+  scene.add(avatar);
+}
+
+/* ==================================================================
+   5. STATE + INPUT
+   ================================================================== */
+var px = 0, targetX = null, moveDir = 0, speed = 3.6;
+var camDist = 11, camY = 2.35, lookY = 2.45;
+
+function reframe(){
+  var aspect = innerWidth / innerHeight;
+  var targetWidth = aspect < 0.8 ? 5.6 : (aspect < 1.3 ? 8.0 : 11.0);
+  var d = targetWidth / (2 * Math.tan(23 * Math.PI / 180) * aspect);
+  camDist = Math.max(7.5, Math.min(17.5, d));
+  camY   = 2.15 + camDist * 0.035;
+  lookY  = 2.30 + camDist * 0.020;
+  if (scene && scene.fog){ scene.fog.near = camDist * 0.95; scene.fog.far = camDist + 34; }
+}
+var focusIdx = -1, inXR = false;
+var pz = 1.5;
+
+function bindInput(){
+  var keys = {};
+  addEventListener('keydown', function(e){
+    if ($('list').classList.contains('on')) return;
+    keys[e.code] = true;
+    if (e.code==='ArrowLeft'||e.code==='KeyA') moveDir = -1;
+    if (e.code==='ArrowRight'||e.code==='KeyD') moveDir = 1;
+    if (e.code==='Enter'||e.code==='Space'||e.code==='KeyE'){ e.preventDefault(); launch(); }
+    if (e.code==='KeyL') showList(true);
+    if (e.code==='Escape') showList(false);
+    if (moveDir) targetX = null;
+  });
+  addEventListener('keyup', function(e){
+    keys[e.code] = false;
+    var l = keys['ArrowLeft']||keys['KeyA'], r = keys['ArrowRight']||keys['KeyD'];
+    moveDir = l ? -1 : (r ? 1 : 0);
+  });
+
+  var down=false, sx=0, spx=0, st=0, moved=0;
+  var el = renderer.domElement;
+  el.addEventListener('pointerdown', function(e){
+    down=true; sx=e.clientX; spx=px; st=performance.now(); moved=0;
+    targetX=null; el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointermove', function(e){
+    if (!down) return;
+    var d = e.clientX - sx;
+    moved = Math.max(moved, Math.abs(d));
+    if (moved > 6){
+      px = clampX(spx - d * 0.016);
+      moveDir = 0;
+    }
+  });
+  el.addEventListener('pointerup', function(e){
+    down=false;
+    if (moved < 8 && performance.now()-st < 400) tap(e);
+  });
+  el.addEventListener('pointercancel', function(){ down=false; });
+
+  $('play').onclick = launch;
+  $('lNo').onclick  = function(){ $('launch').classList.remove('on'); };
+}
+
+function clampX(v){ return Math.max(-HALF-2.4, Math.min(HALF+2.4, v)); }
+
+var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function tap(e){
+  ndc.x = (e.clientX/innerWidth)*2 - 1;
+  ndc.y = -(e.clientY/innerHeight)*2 + 1;
+  ray.near = 0; ray.far = 200;
+  ray.setFromCamera(ndc, camera);
+  var hits = ray.intersectObjects(hitboxes, false);
+  if (!hits.length) return;
+  var i = hits[0].object.userData.index;
+  $('hint').classList.add('gone');
+  if (i === focusIdx) launch();
+  else targetX = cabs[i].x;
+}
+
+function launch(){
+  if (focusIdx < 0) return;
+  var g = cabs[focusIdx].g;
+  window.open(urlFor(g), '_blank', 'noopener');
+}
+
+/* ==================================================================
+   6. XR
+   ================================================================== */
+var xrSession = null, ctrl0, ctrl1, xrRayLine, pendingVR = null;
+
+function buildXR(){
+  if (!navigator.xr || !navigator.xr.isSessionSupported) return;
+  navigator.xr.isSessionSupported('immersive-vr').then(function(ok){
+    if (!ok) return;
+    $('btnVR').hidden = false;
+    $('btnVR').onclick = enterVR;
+  }).catch(function(){});
+
+  ctrl0 = renderer.xr.getController(0);
+  ctrl1 = renderer.xr.getController(1);
+  rig.add(ctrl0); rig.add(ctrl1);
+
+  var lg = new THREE.BufferGeometry().setFromPoints(
+    [new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1)]);
+  xrRayLine = new THREE.Line(lg, new THREE.LineBasicMaterial({ color:0xffb454 }));
+  xrRayLine.scale.z = 5;
+  ctrl1.add(xrRayLine);
+
+  ctrl1.addEventListener('selectstart', xrSelect);
+  ctrl0.addEventListener('selectstart', xrSelect);
+
+  $('lGo').onclick = function(){
+    if (pendingVR) window.open(urlFor(pendingVR), '_blank', 'noopener');
+    $('launch').classList.remove('on');
+  };
+}
+
+function enterVR(){
+  navigator.xr.requestSession('immersive-vr', {
+    optionalFeatures:['local-floor','bounded-floor','hand-tracking','layers']
+  }).then(function(s){
+    xrSession = s; inXR = true;
+    renderer.xr.setReferenceSpaceType('local-floor');
+    renderer.xr.setSession(s);
+    rig.position.set(px, 0, 3.0);
+    rig.rotation.y = 0;
+    avatar.visible = false;
+    s.addEventListener('end', function(){
+      xrSession = null; inXR = false; avatar.visible = true;
+      rig.position.set(0,0,0); rig.rotation.set(0,0,0);
+      if (pendingVR) $('launch').classList.add('on');
+    });
+  }).catch(function(err){
+    $('btnVR').textContent = 'VR unavailable';
+  });
+}
+
+function xrSelect(e){
+  var c = e.target;
+  ray.near = 0; ray.far = 40;
+  var m = new THREE.Matrix4().identity().extractRotation(c.matrixWorld);
+  ray.ray.origin.setFromMatrixPosition(c.matrixWorld);
+  ray.ray.direction.set(0,0,-1).applyMatrix4(m);
+  var hits = ray.intersectObjects(hitboxes, false);
+  if (!hits.length) return;
+  pendingVR = cabs[hits[0].object.userData.index].g;
+  $('lTitle').innerHTML = pendingVR.title;
+  if (xrSession) xrSession.end();
+}
+
+function xrLocomotion(dt){
+  if (!xrSession || !xrSession.inputSources) return;
+  for (var i=0;i<xrSession.inputSources.length;i++){
+    var src = xrSession.inputSources[i];
+    if (!src.gamepad || !src.gamepad.axes) continue;
+    var ax = src.gamepad.axes;
+    var sx2 = ax.length>2 ? ax[2] : ax[0];
+    var sy2 = ax.length>3 ? ax[3] : ax[1];
+    if (Math.abs(sx2)<0.15 && Math.abs(sy2)<0.15) continue;
+    if (src.handedness === 'right'){
+      if (!xrLocomotion.snap && Math.abs(sx2)>0.7){
+        rig.rotation.y -= Math.sign(sx2) * Math.PI/6;
+        xrLocomotion.snap = true;
+      } else if (Math.abs(sx2)<0.4) xrLocomotion.snap = false;
+    } else {
+      var yaw = rig.rotation.y;
+      var fwd = new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw));
+      var rgt = new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+      rig.position.addScaledVector(fwd,  sy2 * 2.2 * dt);
+      rig.position.addScaledVector(rgt,  sx2 * 2.2 * dt);
+      rig.position.x = clampX(rig.position.x);
+      rig.position.z = Math.max(-1.4, Math.min(6.0, rig.position.z));
+    }
+  }
+}
+
+/* ==================================================================
+   7. LOOP
+   ================================================================== */
+var bootT = 0, _lc = new THREE.Color();
+function tick(){
+  var dt = Math.min(clock.getDelta(), 0.05);
+  bootT += dt;
+
+  if (inXR){
+    xrLocomotion(dt);
+    px = rig.position.x;
+  } else {
+    if (moveDir) px = clampX(px + moveDir * speed * dt);
+    else if (targetX !== null){
+      var d = targetX - px;
+      if (Math.abs(d) < 0.06){ px = targetX; targetX = null; }
+      else px = clampX(px + Math.sign(d) * Math.min(Math.abs(d), speed*dt));
+    }
+    var walking = moveDir !== 0 || targetX !== null;
+    walkPhase += dt * (walking ? 9 : 0);
+    if (!walking) walkPhase *= 0.9;
+    var sw = Math.sin(walkPhase) * (walking ? 0.5 : walkPhase*0.1);
+    legL.rotation.x =  sw; legR.rotation.x = -sw;
+    avatar.position.x = px;
+    avatar.position.y = walking ? Math.abs(Math.sin(walkPhase*2))*0.035 : 0;
+    avatar.rotation.y = 3.14159;
+
+    camera.position.set(0, 0, 0);
+    rig.position.x += (px - rig.position.x) * Math.min(1, dt*5);
+    rig.position.y = camY;
+    rig.position.z = camDist;
+    if (!REDUCED) rig.position.y += Math.sin(bootT*1.4)*0.012;
+    camera.lookAt(rig.position.x, lookY, -0.9);
+  }
+
+  // focus
+  var best = -1, bd = REACH;
+  for (var i=0;i<cabs.length;i++){
+    var d2 = Math.abs(cabs[i].x - px);
+    if (d2 < bd){ bd = d2; best = i; }
+  }
+  if (best !== focusIdx){ focusIdx = best; updateCard(); }
+
+  // per-cabinet update: animate only what's close
+  for (var j=0;j<cabs.length;j++){
+    var c = cabs[j], dist = Math.abs(c.x - px);
+    var near = dist < 5.6;
+    var t = c.pool.material;
+    var want = 0.1 + (j===focusIdx ? 0.34 : Math.max(0, 0.2 - dist*0.03));
+    t.opacity += (want - t.opacity) * Math.min(1, dt*6);
+    var ms = c.marq.material;
+    if (!REDUCED && near){
+      c.frame += dt;
+      var rate = (j===focusIdx) ? 1/24 : 1/6;
+      if (c.frame - c.last > rate){
+        c.last = c.frame;
+        ART[c.g.art](c.ctx, 256, 192, c.frame, c.g);
+        c.tex.needsUpdate = true;
+      }
+    }
+    var s = (j===focusIdx) ? 1.0 : 0.0;
+    c.group.position.y += ((s?0.015:0) - c.group.position.y) * Math.min(1, dt*7);
+  }
+
+  if (focusIdx >= 0 && focusLight){
+    var fc = cabs[focusIdx];
+    _lc.set(fc.g.screen);
+    focusLight.position.x += (fc.x - focusLight.position.x) * Math.min(1, dt*6);
+    focusLight.color.lerp(_lc, Math.min(1, dt*4));
+  }
+
+  renderer.render(scene, camera);
+}
+
+function updateCard(){
+  var card = $('card');
+  if (focusIdx < 0){ card.classList.remove('up'); return; }
+  var g = cabs[focusIdx].g;
+  $('cNo').textContent = 'MACHINE ' + (focusIdx<9?'0':'') + (focusIdx+1) + ' OF 0' + GAMES.length;
+  $('cTitle').innerHTML = g.title;
+  $('cTag').innerHTML = g.tag;
+  $('play').style.background = g.screen;
+  card.classList.add('up');
+}
+
+function boot(){
+  if (!renderer || !renderer.getContext()){
+    $('boot').classList.add('gone');
+    showList(true);
+    $('btnClose').style.display = 'none';
+    $('note').innerHTML = 'This browser can\'t run the 3D hall, so here is every machine as a plain list.';
+    return;
+  }
+  start();
+}
+
+function onResize(){
+  reframe();
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+
+boot();
+
+})();
+</script>
+</body>
+</html>
