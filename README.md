@@ -3,6 +3,38 @@
 An enclosed neon beachfront arcade that links nine browser games. Single-file
 front end (`index.html`), Three.js r128 from CDN, WebXR-capable.
 
+## Adding a game
+
+Append one object to `GAMES` near the top of the script block:
+
+    { id:'yourgame', title:'YOUR GAME', tag:'One line &middot; about it',
+      ext:'https://yourgame.vercel.app/', path:'/yourgame/',
+      screen:'#46e8ff',   // screen glow, floor pool, PLAY button
+      body:'#1b7fd4',     // cabinet sides
+      trim:'#21f0ff',     // glowing edge trim
+      art:'hull' },       // key in the ART table
+
+Everything else follows: the row plan, room depth, window count, walk limits,
+step tiers, palms outside and the "OF nn" counter are all derived. Add a
+`vercel.json` rewrite too if you are on proxy mode.
+
+`art` picks the attract loop. Reuse an existing key or write a new one in the
+`ART` table - a function `(ctx, w, h, t, game)` drawing one frame on a 256x192
+canvas, where `t` is seconds.
+
+### Row shape
+
+    var MAX_PER_ROW = 4;      // rows split to keep within this
+    var ROW_PLAN = null;      // or force it: [5,5]
+
+`planRows()` splits the games as evenly as possible, extra machines going to
+the front rows. Ten games gives 4/3/3. Verified for 1 to 13 games and for a
+forced [5,5]: tiers stay aligned, every machine stays reachable, and the walk
+limit never reaches the wall cabinets.
+
+Four is the practical ceiling per row. Five columns spans 14 units against a
+12.5-unit desktop frame, so a row stops fitting on screen.
+
 ## How the building renders
 
 Every wall and the ceiling is a single-sided plane with its normal pointing
@@ -70,7 +102,7 @@ Distance and field of view are derived from the viewport aspect in
 
 ## Performance
 
-The scene builds ~173 meshes. Repeated decor (palm fronds, festoon bulbs,
+The scene builds ~185 meshes at ten games. Repeated decor (palm fronds, festoon bulbs,
 cabinet edge trim, buttons, and all ~20 switched-off wall cabinets) is batched into `InstancedMesh`
 via `instanced()` rather than drawn individually; without that it was 330.
 

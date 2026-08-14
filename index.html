@@ -164,6 +164,9 @@
 var LINK_MODE = 'external';           // 'external' | 'proxy'
 
 var GAMES = [
+  { id:'touchline', title:'TOUCHLINE',      tag:'Multiplayer soccer &middot; AI opponents',
+    ext:'https://touchline-ecru.vercel.app/',   path:'/touchline/',
+    screen:'#eaf6ff', body:'#2b5fd9', trim:'#7fb2ff', art:'pitch' },
   { id:'coldwake',  title:'COLDWAKE',       tag:'Co-op survival shooter &middot; derelict ship',
     ext:'https://coldwake-seven.vercel.app/',   path:'/coldwake/',
     screen:'#46e8ff', body:'#1b7fd4', trim:'#21f0ff', art:'hull' },
@@ -195,22 +198,32 @@ var GAMES = [
 
 function urlFor(g){ return LINK_MODE === 'proxy' ? g.path : g.ext; }
 
-/* ---- 3x3 floor plan. Rows step UP as they go back so the front row
-        never hides the one behind it. ---- */
-var COLS = 3, COL_SP = 3.5, ROW_SP = 5.6;
-var ROWS = Math.ceil(GAMES.length / COLS);
-var TIER = 0.48;                       // height gained per row back
+/* ---- floor plan. Rows are derived from the number of games, so adding
+        one to GAMES is the whole job. Rows step UP as they go back so the
+        front row never hides the one behind it. ---- */
+var COL_SP = 3.5, ROW_SP = 5.6;
+var TIER  = 0.48;                      // height gained per row back
 var STAND = 2.1;                       // how far in front of a machine you stand
 var REACH = 2.05;
 
+var MAX_PER_ROW = 4;                   // wider than this and a row outruns the frame
+var ROW_PLAN = null;                   // set e.g. [5,5] to force the shape by hand
+
+function planRows(n, maxPer){
+  var rows = Math.max(1, Math.ceil(n / maxPer)), plan = [];
+  for (var r=0; r<rows; r++) plan.push(Math.floor(n/rows) + (r < n % rows ? 1 : 0));
+  return plan;                         // plan[0] is the FRONT row
+}
+
+var PLAN = ROW_PLAN || planRows(GAMES.length, MAX_PER_ROW);
+var ROWS = PLAN.length;
+var WIDEST = Math.max.apply(null, PLAN);
+
 function layout(i){
-  var r = Math.floor(i / COLS), c = i % COLS;
-  var back = (ROWS - 1) - r;           // 0 = front row
-  return {
-    x: (c - (COLS-1)/2) * COL_SP,
-    z: -1.2 - back * ROW_SP,
-    y: back * TIER
-  };
+  var r = 0, k = i;
+  while (k >= PLAN[r]){ k -= PLAN[r]; r++; }
+  var n = PLAN[r];
+  return { x:(k - (n-1)/2) * COL_SP, z:-1.2 - r*ROW_SP, y:r*TIER };
 }
 function tierY(z){
   for (var b = ROWS-1; b >= 0; b--){
@@ -219,7 +232,7 @@ function tierY(z){
   return 0;
 }
 
-var X_LIM = (COLS-1)/2 * COL_SP + 2.6;
+var X_LIM = (WIDEST-1)/2 * COL_SP + 2.6;
 var Z_MIN = -1.2 - (ROWS-1)*ROW_SP + 1.15;
 var Z_MAX = 4.2;
 
@@ -469,6 +482,23 @@ var ART = {
     x.moveTo(cx-15,cy); x.lineTo(cx-4,cy); x.moveTo(cx+4,cy); x.lineTo(cx+15,cy);
     x.moveTo(cx,cy-15); x.lineTo(cx,cy-4); x.moveTo(cx,cy+4); x.lineTo(cx,cy+15); x.stroke();
   },
+  pitch: function(x,w,h,t,g){
+    x.fillStyle='#0a3a1c'; x.fillRect(0,0,w,h);
+    for (var i=0;i<6;i++){
+      x.fillStyle = i%2 ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.12)';
+      x.fillRect(0, i*h/6, w, h/6);
+    }
+    x.strokeStyle='rgba(255,255,255,.85)'; x.lineWidth=1.5;
+    x.beginPath(); x.arc(w/2,h/2,h*0.22,0,6.3); x.stroke();
+    x.beginPath(); x.moveTo(0,h/2); x.lineTo(w,h/2); x.stroke();
+    x.strokeRect(w*0.32, -2, w*0.36, h*0.14);
+    x.strokeRect(w*0.32, h*0.88, w*0.36, h*0.14);
+    var bx = w/2 + Math.sin(t*1.6)*w*0.31, by = h/2 + Math.cos(t*2.1)*h*0.27;
+    x.fillStyle='#fff'; x.beginPath(); x.arc(bx,by,3.8,0,6.3); x.fill();
+    var gr = x.createRadialGradient(w*0.5,-h*0.12,2,w*0.5,-h*0.12,h*0.95);
+    gr.addColorStop(0,'rgba(234,246,255,.42)'); gr.addColorStop(1,'rgba(234,246,255,0)');
+    x.fillStyle=gr; x.fillRect(0,0,w,h);
+  },
   links: function(x,w,h,t,g){
     var gr=x.createLinearGradient(0,0,0,h);
     gr.addColorStop(0,'#2a1a63'); gr.addColorStop(.45,'#3f8a48'); gr.addColorStop(1,'#1d5a22');
@@ -610,8 +640,16 @@ function neonTube(x,y,z,len,hex,vertical){
    sees straight through their back faces; in VR you are inside a closed
    room. Same geometry, both behaviours, no culling code.
    ------------------------------------------------------------------- */
-var X_W = 11.5, Z_NEAR = 7.4, Z_FAR = -18.5, WALL_H = 7.0;
-var WIN_Z = [2.4, -2.6, -7.6, -12.6], WIN_W = 2.6, WIN_SILL = 2.0, WIN_TOP = 5.4;
+var X_W = Math.max(11.5, X_LIM + 3.6);
+var Z_NEAR = 7.4;
+var Z_FAR  = -1.2 - (ROWS-1)*ROW_SP - 6.1;
+var WALL_H = 7.0;
+var WIN_W = 2.6, WIN_SILL = 2.0, WIN_TOP = 5.4;
+var WIN_Z = (function(){
+  var a = [];
+  for (var z = 2.4; z > Z_FAR + 3.0; z -= 5.0) a.push(z);
+  return a;
+})();
 
 var FRONDS = [], BULBS = [], MULLIONS = [];
 var DEAD = [];                      // cabinets that are switched off
@@ -655,7 +693,7 @@ function shaftTex(){
 
 function deadRow(){
   // right-hand wall, cabinets facing into the room
-  for (var z=2.0; z>-16.6; z-=1.92)
+  for (var z=2.0; z>Z_FAR+1.5; z-=1.92)
     DEAD.push({ x:X_W-0.78, z:z, ry:-Math.PI/2, seed:DEAD.length });
   // far wall, facing the player
   for (var x=-X_W+1.4; x<=X_W-1.4; x+=1.92)
@@ -725,10 +763,10 @@ function buildRoom(){
   var sky1 = new THREE.Mesh(new THREE.PlaneGeometry(150, 68), skyM);
   sky1.position.set(0, 22, -56); scene.add(sky1);
   var sky2 = new THREE.Mesh(new THREE.PlaneGeometry(150, 68), skyM);
-  sky2.position.set(-48, 20, -6); sky2.rotation.y = Math.PI/2; scene.add(sky2);
+  sky2.position.set(-48, 20, (Z_NEAR+Z_FAR)/2); sky2.rotation.y = Math.PI/2; scene.add(sky2);
 
   // palms outside the windows
-  for (var i=0;i<4;i++) palm(-X_W - 4.5 - (i%2)*2.4, 3 - i*5.6, 5.6 + (i%3)*1.0);
+  for (var i=0;i<WIN_Z.length;i++) palm(-X_W - 4.5 - (i%2)*2.4, WIN_Z[i] + 1.2, 5.6 + (i%3)*1.0);
 
   // ---- sun coming through the windows ----
   var stex = shaftTex();
@@ -777,8 +815,9 @@ function buildRoom(){
   scene.add(instanced(geoScreen, new THREE.MeshBasicMaterial({}), scrItems));
 
   // festoon lights hugging both walls
-  stringLights(-X_W+0.8, 5.4, -X_W+0.8, -16.5, 9, 0x21f0ff);
-  stringLights( X_W-0.8, 5.4,  X_W-0.8, -16.5, 9, 0xff2f9e);
+  var runEnd = Z_FAR + 2.0;
+  stringLights(-X_W+0.8, 5.4, -X_W+0.8, runEnd, 9, 0x21f0ff);
+  stringLights( X_W-0.8, 5.4,  X_W-0.8, runEnd, 9, 0xff2f9e);
 
   decor.add(instanced(new THREE.PlaneGeometry(3.0, 0.78),
     new THREE.MeshBasicMaterial({ side:THREE.DoubleSide, transparent:true, opacity:0.92 }), FRONDS));
@@ -911,14 +950,15 @@ function buildAvatar(){
     blending:THREE.AdditiveBlending, depthWrite:false }));
   glow.rotation.x = -Math.PI/2; glow.position.y = 0.02; avatar.add(glow);
 
-  avatar.position.set(0, 0, 2.4);
+  avatar.position.set(px, py, pz);
   scene.add(avatar);
 }
 
 /* ==================================================================
    7. STATE + INPUT — now two axes
    ================================================================== */
-var px = 0, pz = 2.4, py = 0;
+var _home = layout(0);
+var px = _home.x, pz = _home.z + STAND + 0.6, py = _home.y;
 var mvX = 0, mvZ = 0, tgt = null, speed = 4.4, facing = Math.PI;
 var focusIdx = -1, inXR = false;
 var camDist = 13, camFov = 46;
@@ -1190,7 +1230,8 @@ function updateCard(){
   var card = $('card');
   if (focusIdx < 0){ card.classList.remove('up'); return; }
   var g = cabs[focusIdx].g;
-  $('cNo').textContent = 'MACHINE ' + (focusIdx<9?'0':'') + (focusIdx+1) + ' OF 0' + GAMES.length;
+  var pad = function(n){ return (n<10?'0':'') + n; };
+  $('cNo').textContent = 'MACHINE ' + pad(focusIdx+1) + ' OF ' + pad(GAMES.length);
   $('cTitle').innerHTML = g.title;
   $('cTag').innerHTML = g.tag;
   $('play').style.background = g.screen;
