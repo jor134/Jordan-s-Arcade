@@ -18,6 +18,12 @@ Everything else follows: the row plan, room depth, window count, walk limits,
 step tiers, palms outside and the "OF nn" counter are all derived. Add a
 `vercel.json` rewrite too if you are on proxy mode.
 
+Colour is the part that does not scale. Eleven machines already use eleven
+distinct neon hues and the gaps between them are closing; past about fourteen
+you will be picking near-duplicates. When that happens, stop assigning unique
+colours and group by genre instead - all the racers blue, all the shooters
+red - so the room reads as sections rather than confetti.
+
 `art` picks the attract loop. Reuse an existing key or write a new one in the
 `ART` table - a function `(ctx, w, h, t, game)` drawing one frame on a 256x192
 canvas, where `t` is seconds.
@@ -31,6 +37,10 @@ canvas, where `t` is seconds.
 the front rows. Ten games gives 4/3/3. Verified for 1 to 13 games and for a
 forced [5,5]: tiers stay aligned, every machine stays reachable, and the walk
 limit never reaches the wall cabinets.
+
+Eleven games gives 4/4/3 in the same room - the third row only needs a wider
+plan once you pass twelve, at which point a fourth row appears and the far
+wall, windows and palms all move back on their own.
 
 Four is the practical ceiling per row. Five columns spans 14 units against a
 12.5-unit desktop frame, so a row stops fitting on screen.
@@ -102,7 +112,7 @@ Distance and field of view are derived from the viewport aspect in
 
 ## Performance
 
-The scene builds ~185 meshes at ten games. Repeated decor (palm fronds, festoon bulbs,
+The scene builds ~197 meshes at eleven games. Repeated decor (palm fronds, festoon bulbs,
 cabinet edge trim, buttons, and all ~20 switched-off wall cabinets) is batched into `InstancedMesh`
 via `instanced()` rather than drawn individually; without that it was 330.
 

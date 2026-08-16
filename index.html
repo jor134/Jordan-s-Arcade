@@ -164,6 +164,9 @@
 var LINK_MODE = 'external';           // 'external' | 'proxy'
 
 var GAMES = [
+  { id:'shutoko',   title:'NEON SHUTOKO',    tag:'Endless expressway &middot; weave traffic, cut the line',
+    ext:'https://neon-shutoko.vercel.app/',     path:'/shutoko/',
+    screen:'#6c7bff', body:'#2a2f8f', trim:'#8f9bff', art:'wangan' },
   { id:'touchline', title:'TOUCHLINE',      tag:'Multiplayer soccer &middot; AI opponents',
     ext:'https://touchline-ecru.vercel.app/',   path:'/touchline/',
     screen:'#eaf6ff', body:'#2b5fd9', trim:'#7fb2ff', art:'pitch' },
@@ -481,6 +484,34 @@ var ART = {
     x.beginPath();
     x.moveTo(cx-15,cy); x.lineTo(cx-4,cy); x.moveTo(cx+4,cy); x.lineTo(cx+15,cy);
     x.moveTo(cx,cy-15); x.lineTo(cx,cy-4); x.moveTo(cx,cy+4); x.lineTo(cx,cy+15); x.stroke();
+  },
+  wangan: function(x,w,h,t,g){
+    x.fillStyle='#05060d'; x.fillRect(0,0,w,h);
+    var hz = h*0.38;
+    var gg = x.createLinearGradient(0,hz-20,0,hz+6);
+    gg.addColorStop(0,'rgba(108,123,255,0)'); gg.addColorStop(1,'rgba(108,123,255,.5)');
+    x.fillStyle=gg; x.fillRect(0,hz-20,w,26);
+    x.fillStyle='#0b0e1c';
+    for (var i=0;i<14;i++){ var bw=w/14, bh=6+((i*37)%22); x.fillRect(i*bw, hz-bh, bw-1.6, bh); }
+    x.fillStyle='#0a0c18';
+    x.beginPath(); x.moveTo(w*0.5-8,hz); x.lineTo(w*0.5+8,hz);
+    x.lineTo(w*1.25,h); x.lineTo(-w*0.25,h); x.closePath(); x.fill();
+    x.strokeStyle='rgba(143,155,255,.5)'; x.lineWidth=1.2;
+    x.beginPath(); x.moveTo(w*0.5-8,hz); x.lineTo(-w*0.25,h);
+    x.moveTo(w*0.5+8,hz); x.lineTo(w*1.25,h); x.stroke();
+    for (var s2=0;s2<10;s2++){
+      var p=((t*0.45)+s2/10)%1, sc=p*p;
+      var y=hz+sc*(h-hz), half=10+sc*w*0.62, lw=1+sc*4;
+      x.fillStyle = (s2%3===0) ? 'rgba(255,60,90,'+(0.25+sc*0.65)+')'
+                               : 'rgba(230,238,255,'+(0.18+sc*0.6)+')';
+      var off=(s2%2?-1:1)*half*0.42;
+      x.fillRect(w*0.5+off-half*0.16, y, half*0.32, lw);
+    }
+    x.fillStyle='rgba(255,210,63,.7)';
+    for (var d=0;d<6;d++){
+      var p2=((t*0.6)+d/6)%1, sc2=p2*p2;
+      x.fillRect(w*0.5-1-sc2*2, hz+sc2*(h-hz), 2+sc2*4, 3+sc2*8);
+    }
   },
   pitch: function(x,w,h,t,g){
     x.fillStyle='#0a3a1c'; x.fillRect(0,0,w,h);

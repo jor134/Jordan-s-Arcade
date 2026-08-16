@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/shutoko/:path*",   "destination": "https://neon-shutoko.vercel.app/:path*" },
     { "source": "/touchline/:path*", "destination": "https://touchline-ecru.vercel.app/:path*" },
     { "source": "/coldwake/:path*",  "destination": "https://coldwake-seven.vercel.app/:path*" },
     { "source": "/deepfall/:path*",  "destination": "https://deepfall-vr-1.vercel.app/:path*" },
