@@ -5,7 +5,30 @@ front end (`index.html`), Three.js r128 from CDN, WebXR-capable.
 
 ## Adding a game
 
-Append one object to `GAMES` near the top of the script block:
+Two ways. Both end in a commit.
+
+### From inside the arcade
+
+Hit **+ Machine** in the top bar. Title, URL, one line, a colour and an
+attract loop. It appears immediately, marked DRAFT on its marquee.
+
+Drafts are stored in that browser only - `localStorage`, no server. Nobody
+else sees them, and they vanish if you clear site data. To publish, open
+**All games**, copy the generated snippet, paste it into `BUILT_IN` and
+`vercel.json`, and commit.
+
+Adding or removing a draft reloads the page. That is deliberate: room depth,
+row plan, window count, wall length and walk limits are all derived from the
+game list, so a reload rebuilding from data is safer than tearing the scene
+down live.
+
+Every `localStorage` call is wrapped in try/catch. In a sandboxed preview or
+Safari private mode the whole feature goes quiet and the built-in twelve load
+normally.
+
+### In code
+
+Append one object to `BUILT_IN` near the top of the script block:
 
     { id:'yourgame', title:'YOUR GAME', tag:'One line &middot; about it',
       ext:'https://yourgame.vercel.app/', path:'/yourgame/',
@@ -18,7 +41,7 @@ Everything else follows: the row plan, room depth, window count, walk limits,
 step tiers, palms outside and the "OF nn" counter are all derived. Add a
 `vercel.json` rewrite too if you are on proxy mode.
 
-Colour is the part that does not scale. Eleven machines already use eleven
+Colour is the part that does not scale. Twelve machines use twelve
 distinct neon hues and the gaps between them are closing; past about fourteen
 you will be picking near-duplicates. When that happens, stop assigning unique
 colours and group by genre instead - all the racers blue, all the shooters
@@ -38,7 +61,7 @@ the front rows. Ten games gives 4/3/3. Verified for 1 to 13 games and for a
 forced [5,5]: tiers stay aligned, every machine stays reachable, and the walk
 limit never reaches the wall cabinets.
 
-Eleven games gives 4/4/3 in the same room - the third row only needs a wider
+Twelve games gives 4/4/4 in the same room - the third row only needs a wider
 plan once you pass twelve, at which point a fourth row appears and the far
 wall, windows and palms all move back on their own.
 
@@ -112,7 +135,7 @@ Distance and field of view are derived from the viewport aspect in
 
 ## Performance
 
-The scene builds ~197 meshes at eleven games. Repeated decor (palm fronds, festoon bulbs,
+The scene builds ~209 meshes at twelve games. Repeated decor (palm fronds, festoon bulbs,
 cabinet edge trim, buttons, and all ~20 switched-off wall cabinets) is batched into `InstancedMesh`
 via `instanced()` rather than drawn individually; without that it was 330.
 

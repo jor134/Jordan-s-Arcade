@@ -100,6 +100,38 @@
   #list .go{font-size:10px;letter-spacing:.2em;color:var(--gold)}
   #note{padding:22px 20px 0;font-size:11px;line-height:1.7;color:var(--dim);max-width:640px}
 
+  #list li{position:relative}
+  #list .rm{position:absolute;right:18px;top:50%;transform:translateY(-50%);z-index:2}
+  #list .chip{font-family:var(--mono);font-size:9px;font-weight:400;letter-spacing:.18em;
+              color:var(--night);background:var(--gold);padding:2px 5px;vertical-align:middle;
+              margin-left:8px}
+  #exportWrap{padding:24px 20px 0;max-width:680px}
+  #exportWrap h4{font-family:var(--display);font-weight:800;font-size:22px;margin:0 0 6px;color:var(--gold)}
+  #exportWrap p{font-size:11px;line-height:1.7;color:var(--dim);margin:0 0 10px}
+  #exportWrap code{color:var(--cyan)}
+  #exportText{width:100%;height:150px;background:#0f0722;color:var(--bone);
+              border:1px solid rgba(255,238,221,.2);font-family:var(--mono);font-size:11px;
+              line-height:1.6;padding:10px;resize:vertical}
+
+  #addBox{position:fixed;inset:0;z-index:55;background:rgba(11,5,26,.9);display:none;
+          align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+  #addBox.on{display:flex}
+  #addBox .sheet{width:min(420px,100%);background:var(--night);
+                 border:1px solid rgba(255,238,221,.2);border-top:2px solid var(--pink);padding:20px}
+  #addBox h3{font-family:var(--display);font-weight:800;font-size:30px;margin:0 0 14px;color:var(--pink)}
+  #addBox label{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+                color:var(--dim);margin-bottom:12px}
+  #addBox input,#addBox select{display:block;width:100%;margin-top:6px;background:#0f0722;
+                color:var(--bone);border:1px solid rgba(255,238,221,.22);padding:10px;
+                font-family:var(--mono);font-size:13px;letter-spacing:normal;text-transform:none}
+  #addBox input:focus,#addBox select:focus{outline:none;border-color:var(--cyan)}
+  #swatches{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+  #swatches b{width:30px;height:30px;cursor:pointer;border:2px solid transparent}
+  #swatches b.sel{border-color:var(--bone)}
+  #fErr{font-size:11px;color:var(--sun);margin:0 0 10px;min-height:14px;letter-spacing:.04em}
+  .rowbtns{display:flex;gap:8px}
+  #addBox .fine{font-size:10px;color:var(--dim);line-height:1.7;margin:14px 0 0}
+
   #launch{position:fixed;inset:0;z-index:50;background:rgba(15,6,33,.95);display:none;
           align-items:center;justify-content:center;padding:24px}
   #launch.on{display:flex}
@@ -116,14 +148,15 @@
 <div id="hall" aria-hidden="true"></div>
 
 <div id="top">
-  <div id="sign">PIER NINE<span>OPEN LATE &middot; ALL MACHINES ON FREE PLAY</span></div>
+  <div id="sign">PIER NINE<span>OPEN LATE · ALL MACHINES ON FREE PLAY</span></div>
   <div id="tools">
     <button class="tool" id="btnVR" hidden>Enter VR</button>
+    <button class="tool" id="btnAdd">+ Machine</button>
     <button class="tool" id="btnList">All games</button>
   </div>
 </div>
 
-<div id="hint">Drag to walk &middot; tap a machine</div>
+<div id="hint">Drag to walk · tap a machine</div>
 
 <div id="hud"><div id="card">
   <div>
@@ -137,8 +170,31 @@
 <div id="list" role="dialog" aria-label="All games">
   <header><h2>All games</h2><button class="tool" id="btnClose">Back to the pier</button></header>
   <ol id="listItems"></ol>
+  <div id="exportWrap" hidden>
+    <h4>Make your drafts real</h4>
+    <p>Drafts live in this browser only. Paste this into <code>index.html</code>
+       and <code>vercel.json</code>, commit, and everyone sees them.</p>
+    <textarea id="exportText" readonly spellcheck="false"></textarea>
+    <button class="tool" id="btnCopy">Copy</button>
+  </div>
   <p id="note"></p>
 </div>
+
+<div id="addBox"><div class="sheet">
+  <h3>Add a machine</h3>
+  <label>Title<input id="fTitle" maxlength="22" placeholder="NEON SHUTOKO" autocomplete="off"></label>
+  <label>URL<input id="fUrl" type="url" placeholder="https://your-game.vercel.app/" autocomplete="off"></label>
+  <label>One line<input id="fTag" maxlength="52" placeholder="What it is" autocomplete="off"></label>
+  <label>Cabinet colour<span id="swatches"></span></label>
+  <label>Attract loop<select id="fArt"></select></label>
+  <p id="fErr"></p>
+  <div class="rowbtns">
+    <button class="tool" id="fAdd">Add machine</button>
+    <button class="tool" id="fCancel">Cancel</button>
+  </div>
+  <p class="fine">Saved in this browser only. Visitors will not see it until you
+     export the snippet from All games and commit it.</p>
+</div></div>
 
 <div id="launch"><div>
   <h3 id="lTitle">&mdash;</h3>
@@ -163,43 +219,76 @@
    ================================================================== */
 var LINK_MODE = 'external';           // 'external' | 'proxy'
 
-var GAMES = [
-  { id:'shutoko',   title:'NEON SHUTOKO',    tag:'Endless expressway &middot; weave traffic, cut the line',
+var BUILT_IN = [
+  { id:'nightshift',title:'NIGHT SHIFT',     tag:'Two-deck DJ rig · live synthesis, no samples',
+    ext:'https://night-shift-three.vercel.app/', path:'/nightshift/',
+    screen:'#e04dff', body:'#5a1a7a', trim:'#ff6ae0', art:'decks' },
+  { id:'shutoko',   title:'NEON SHUTOKO',    tag:'Endless expressway · weave traffic, cut the line',
     ext:'https://neon-shutoko.vercel.app/',     path:'/shutoko/',
     screen:'#6c7bff', body:'#2a2f8f', trim:'#8f9bff', art:'wangan' },
-  { id:'touchline', title:'TOUCHLINE',      tag:'Multiplayer soccer &middot; AI opponents',
+  { id:'touchline', title:'TOUCHLINE',      tag:'Multiplayer soccer · AI opponents',
     ext:'https://touchline-ecru.vercel.app/',   path:'/touchline/',
     screen:'#eaf6ff', body:'#2b5fd9', trim:'#7fb2ff', art:'pitch' },
-  { id:'coldwake',  title:'COLDWAKE',       tag:'Co-op survival shooter &middot; derelict ship',
+  { id:'coldwake',  title:'COLDWAKE',       tag:'Co-op survival shooter · derelict ship',
     ext:'https://coldwake-seven.vercel.app/',   path:'/coldwake/',
     screen:'#46e8ff', body:'#1b7fd4', trim:'#21f0ff', art:'hull' },
-  { id:'deepfall',  title:'DEEPFALL VR',    tag:'PvPvE space extraction &middot; hand tracking',
+  { id:'deepfall',  title:'DEEPFALL VR',    tag:'PvPvE space extraction · hand tracking',
     ext:'https://deepfall-vr-1.vercel.app/',    path:'/deepfall/',
     screen:'#b06bff', body:'#6a2fd0', trim:'#e06bff', art:'stars' },
-  { id:'saltbone',  title:'SALTBONE',       tag:'PvEvP island survival &middot; build a fort',
+  { id:'saltbone',  title:'SALTBONE',       tag:'PvEvP island survival · build a fort',
     ext:'https://rust-bone.vercel.app/',        path:'/saltbone/',
     screen:'#2bffc9', body:'#0f9e86', trim:'#2bffc9', art:'tide' },
-  { id:'flint',     title:'FLINT &amp; FIRE',   tag:'Stone Age RTS &middot; eight ages, co-op',
+  { id:'flint',     title:'FLINT & FIRE',   tag:'Stone Age RTS · eight ages, co-op',
     ext:'https://flint-and-fire.vercel.app/',   path:'/flint/',
     screen:'#ff8a1f', body:'#d64a10', trim:'#ffb62c', art:'ember' },
-  { id:'renegade',  title:'RENEGADE FRONT', tag:'2-player run &amp; gun &middot; phone-to-phone',
+  { id:'renegade',  title:'RENEGADE FRONT', tag:'2-player run & gun · phone-to-phone',
     ext:'https://strikeforce-two.vercel.app/',  path:'/renegade/',
     screen:'#a6ff3c', body:'#4ba81c', trim:'#b6ff2e', art:'jungle' },
-  { id:'turbo',     title:'TURBO CRITTERS', tag:'Kart racing &middot; six critters, eight players',
+  { id:'turbo',     title:'TURBO CRITTERS', tag:'Kart racing · six critters, eight players',
     ext:'https://turbo-critters.vercel.app/',   path:'/turbo/',
     screen:'#ff45a8', body:'#d3117a', trim:'#ff2f9e', art:'track' },
-  { id:'dinger',    title:'DINGER DERBY',   tag:'Home run derby &middot; cel-shaded',
+  { id:'dinger',    title:'DINGER DERBY',   tag:'Home run derby · cel-shaded',
     ext:'https://dinger-derby-ten.vercel.app/', path:'/dinger/',
     screen:'#ffe23d', body:'#e0a010', trim:'#ffd23f', art:'arc' },
-  { id:'coldstore', title:'COLDSTORE',      tag:'Rail shooter &middot; three floors, three bosses',
+  { id:'coldstore', title:'COLDSTORE',      tag:'Rail shooter · three floors, three bosses',
     ext:'https://coldstore-five.vercel.app/',   path:'/coldstore/',
     screen:'#ff4d5e', body:'#c81f3c', trim:'#ff5f7a', art:'sight' },
-  { id:'wildmoor',  title:'WILDMOOR LINKS', tag:'18-hole links golf &middot; procedural',
+  { id:'wildmoor',  title:'WILDMOOR LINKS', tag:'18-hole links golf · procedural',
     ext:'https://wildmoor-links.vercel.app/',   path:'/wildmoor/',
     screen:'#7cff5a', body:'#2fae3a', trim:'#9dff6a', art:'links' }
 ];
 
-function urlFor(g){ return LINK_MODE === 'proxy' ? g.path : g.ext; }
+/* Machines added from inside the arcade live in this browser only. Every
+   localStorage call is guarded: a sandboxed preview or Safari private mode
+   throws on access, and the arcade must still open. */
+var LS_KEY = 'piernine:machines', MAX_MACHINES = 20;
+function lsGet(){
+  try { var v = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); return v.length ? v : []; }
+  catch(e){ return []; }
+}
+function lsSet(a){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(a)); return true; }
+  catch(e){ return false; }
+}
+function esc(t){
+  return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+
+var GAMES = BUILT_IN.slice();
+(function(){
+  var loc = lsGet();
+  for (var i=0; i<loc.length && GAMES.length < MAX_MACHINES; i++){
+    var m = loc[i];
+    if (!m || !m.title || !m.ext) continue;
+    GAMES.push({ id:m.id, title:m.title, tag:m.tag || '', ext:m.ext, path:m.path,
+                 screen:m.screen, body:m.body, trim:m.trim, art:m.art, draft:true });
+  }
+})();
+
+/* drafts have no rewrite behind them, so they always go straight out */
+function urlFor(g){ return (LINK_MODE === 'proxy' && !g.draft) ? g.path : g.ext; }
 
 /* ---- floor plan. Rows are derived from the number of games, so adding
         one to GAMES is the whole job. Rows step UP as they go back so the
@@ -249,21 +338,76 @@ var $ = function(id){ return document.getElementById(id); };
 /* ==================================================================
    2. LIST VIEW
    ================================================================== */
-(function buildList(){
-  var html = '';
+function buildList(){
+  var html = '', drafts = 0;
   for (var i=0;i<GAMES.length;i++){
     var g = GAMES[i];
-    html += '<li><a href="'+urlFor(g)+'" target="_blank" rel="noopener">'
-          + '<span class="swatch" style="background:'+g.screen+'"></span>'
-          + '<span><span class="t">'+g.title+'</span><span class="d">'+g.tag+'</span></span>'
-          + '<span class="go">OPEN &#8599;</span></a></li>';
+    if (g.draft) drafts++;
+    html += '<li><a href="'+esc(urlFor(g))+'" target="_blank" rel="noopener">'
+          + '<span class="swatch" style="background:'+esc(g.screen)+'"></span>'
+          + '<span><span class="t">'+esc(g.title)
+          + (g.draft ? ' <b class="chip">DRAFT</b>' : '') + '</span>'
+          + '<span class="d">'+esc(g.tag)+'</span></span>'
+          + '<span class="go">OPEN &#8599;</span></a>'
+          + (g.draft ? '<button class="tool rm" data-i="'+i+'">Remove</button>' : '')
+          + '</li>';
   }
   $('listItems').innerHTML = html;
   $('note').innerHTML = 'Every machine opens in its own tab. Install any of them from its own '
     + 'menu to run it full screen off your home screen.';
-})();
+  $('exportWrap').hidden = drafts === 0;
+
+  var rms = $('listItems').querySelectorAll('.rm');
+  for (var r=0;r<rms.length;r++){
+    rms[r].onclick = function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      removeDraft(parseInt(this.getAttribute('data-i'), 10));
+    };
+  }
+}
+buildList();
+
+function removeDraft(idx){
+  var g = GAMES[idx]; if (!g || !g.draft) return;
+  var loc = lsGet(), out = [];
+  for (var i=0;i<loc.length;i++) if (loc[i].id !== g.id) out.push(loc[i]);
+  lsSet(out);
+  location.reload();
+}
+
+/* The only thing that makes a machine real for visitors: paste this into
+   BUILT_IN and vercel.json, then commit. */
+function exportSnippet(){
+  var js = '', rw = '';
+  function q(v){ return String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+  for (var i=0;i<GAMES.length;i++){
+    var g = GAMES[i]; if (!g.draft) continue;
+    js += "  { id:'"+q(g.id)+"', title:'"+q(g.title)+"', tag:'"+q(g.tag)+"',\n"
+        + "    ext:'"+q(g.ext)+"', path:'"+q(g.path)+"',\n"
+        + "    screen:'"+q(g.screen)+"', body:'"+q(g.body)+"', trim:'"+q(g.trim)
+        + "', art:'"+q(g.art)+"' },\n";
+    rw += '    { "source": "'+g.path+':path*", "destination": "'
+        + String(g.ext).replace(/\/$/,'') + '/:path*" },\n';
+  }
+  if (!js) return '';
+  return '/* 1. paste into BUILT_IN in index.html */\n' + js
+       + '\n/* 2. paste into the "rewrites" array in vercel.json */\n' + rw;
+}
+
 function showList(on){ $('list').classList.toggle('on', on); }
-$('btnList').onclick = function(){ showList(true); };
+$('btnList').onclick = function(){
+  $('exportText').value = exportSnippet();
+  showList(true);
+};
+$('btnCopy').onclick = function(){
+  var ta = $('exportText');
+  ta.select(); ta.setSelectionRange(0, 99999);
+  var done = false;
+  try { done = document.execCommand('copy'); } catch(e){}
+  if (!done && navigator.clipboard) navigator.clipboard.writeText(ta.value);
+  $('btnCopy').textContent = 'Copied';
+  setTimeout(function(){ $('btnCopy').textContent = 'Copy'; }, 1600);
+};
 $('btnClose').onclick = function(){ showList(false); };
 
 /* ==================================================================
@@ -360,7 +504,7 @@ function marqueeTex(g){
     x.fillStyle = 'rgba(20,6,45,.45)'; x.fillRect(0,0,512,148);
     x.fillStyle = g.trim; x.fillRect(0,0,512,5); x.fillRect(0,143,512,5);
     x.textAlign='center'; x.textBaseline='middle';
-    var size = 80, name = g.title.replace('&amp;','&');
+    var size = 80, name = String(g.title);
     x.font = '800 '+size+'px "Big Shoulders Display", Impact, sans-serif';
     while (x.measureText(name).width > 468 && size > 28){
       size -= 3; x.font = '800 '+size+'px "Big Shoulders Display", Impact, sans-serif';
@@ -371,7 +515,7 @@ function marqueeTex(g){
     x.shadowBlur = 0;
     x.font = '500 17px "DM Mono", monospace';
     x.fillStyle = 'rgba(255,238,221,.85)';
-    x.fillText('FREE PLAY', 256, 124);
+    x.fillText(g.draft ? 'DRAFT \u00b7 THIS BROWSER ONLY' : 'FREE PLAY', 256, 124);
     tex.needsUpdate = true;
   }
   var tex = new THREE.CanvasTexture(c);
@@ -484,6 +628,31 @@ var ART = {
     x.beginPath();
     x.moveTo(cx-15,cy); x.lineTo(cx-4,cy); x.moveTo(cx+4,cy); x.lineTo(cx+15,cy);
     x.moveTo(cx,cy-15); x.lineTo(cx,cy-4); x.moveTo(cx,cy+4); x.lineTo(cx,cy+15); x.stroke();
+  },
+  decks: function(x,w,h,t,g){
+    var beat = (t*2.1) % 1;
+    var flash = Math.pow(1-beat, 5);
+    var club = ['#e04dff','#21f0ff','#ff2f9e','#b6ff2e'][Math.floor(t*2.1) % 4];
+    x.fillStyle='#0b0d10'; x.fillRect(0,0,w,h);
+    x.globalAlpha = 0.16 + flash*0.4; x.fillStyle = club; x.fillRect(0,0,w,h);
+    x.globalAlpha = 1;
+    for (var d=0; d<2; d++){
+      var cx = w*(d?0.74:0.26), cy = h*0.44, r = h*0.25;
+      x.strokeStyle='rgba(255,255,255,.35)'; x.lineWidth=1.4;
+      x.beginPath(); x.arc(cx,cy,r,0,6.3); x.stroke();
+      var a = t*(d?2.3:2.0) + d*2.1;
+      x.strokeStyle = club; x.lineWidth = 2.2;
+      x.beginPath(); x.moveTo(cx,cy); x.lineTo(cx+Math.cos(a)*r*0.86, cy+Math.sin(a)*r*0.86); x.stroke();
+      x.fillStyle='rgba(255,255,255,.9)';
+      x.beginPath(); x.arc(cx,cy,2.6,0,6.3); x.fill();
+    }
+    for (var b=0;b<12;b++){
+      var lv = Math.abs(Math.sin(t*3.1 + b*0.7)) * (0.35 + flash*0.55);
+      x.fillStyle = b%3 ? 'rgba(255,255,255,.75)' : club;
+      x.fillRect(6 + b*(w-12)/12, h*0.94 - lv*h*0.24, (w-12)/12 - 2.5, lv*h*0.24);
+    }
+    x.fillStyle='rgba(255,255,255,.5)';
+    x.fillRect(w*0.5-1, h*0.16, 2, h*0.56);
   },
   wangan: function(x,w,h,t,g){
     x.fillStyle='#05060d'; x.fillRect(0,0,w,h);
@@ -935,7 +1104,7 @@ function buildCabinets(){
                 x:lay.x, y:lay.y, z:lay.z,
                 sx:lay.x, sz:lay.z + STAND,        // where you stand to play it
                 frame:0, last:0 });
-    ART[g.art](sctx,256,192,0,g);
+    (ART[g.art] || ART.hull)(sctx,256,192,0,g);
     stex.needsUpdate = true;
   }
 }
@@ -1124,7 +1293,7 @@ function xrSelect(e){
   var hits = ray.intersectObjects(hitboxes, false);
   if (!hits.length) return;
   pendingVR = cabs[hits[0].object.userData.index].g;
-  $('lTitle').innerHTML = pendingVR.title;
+  $('lTitle').textContent = pendingVR.title;
   if (xrSession) xrSession.end();
 }
 
@@ -1230,7 +1399,7 @@ function tick(){
       var rate = (j===focusIdx) ? 1/24 : 1/6;
       if (c.frame - c.last > rate){
         c.last = c.frame;
-        ART[c.g.art](c.ctx,256,192,c.frame,c.g);
+        (ART[c.g.art] || ART.hull)(c.ctx,256,192,c.frame,c.g);
         c.tex.needsUpdate = true;
       }
     }
@@ -1263,8 +1432,8 @@ function updateCard(){
   var g = cabs[focusIdx].g;
   var pad = function(n){ return (n<10?'0':'') + n; };
   $('cNo').textContent = 'MACHINE ' + pad(focusIdx+1) + ' OF ' + pad(GAMES.length);
-  $('cTitle').innerHTML = g.title;
-  $('cTag').innerHTML = g.tag;
+  $('cTitle').textContent = g.title;
+  $('cTag').textContent = g.tag;
   $('play').style.background = g.screen;
   card.classList.add('up');
 }
@@ -1276,14 +1445,106 @@ function onResize(){
   renderer.setSize(innerWidth, innerHeight);
 }
 
+
+/* ==================================================================
+   10. ADD A MACHINE FROM INSIDE THE ARCADE
+   Local to this browser. The room's dimensions, row plan, window count
+   and walk limits are all derived from GAMES, so the only safe way to
+   apply a new machine is to reload and let start() rebuild from data.
+   ================================================================== */
+var PALETTE = ['#46e8ff','#e04dff','#6c7bff','#eaf6ff','#2bffc9','#ff8a1f',
+               '#a6ff3c','#ff45a8','#ffe23d','#ff4d5e','#7cff5a','#b06bff'];
+var pickColour = PALETTE[0];
+
+function hex2rgb(h){
+  h = String(h).replace('#','');
+  return [parseInt(h.substr(0,2),16), parseInt(h.substr(2,2),16), parseInt(h.substr(4,2),16)];
+}
+function mixHex(a, b, t){
+  var x = hex2rgb(a), y = hex2rgb(b), o = '#';
+  for (var i=0;i<3;i++){
+    var v = Math.round(x[i] + (y[i]-x[i]) * t).toString(16);
+    o += v.length < 2 ? '0'+v : v;
+  }
+  return o;
+}
+function slug(t){
+  return String(t).toLowerCase().replace(/[^a-z0-9]+/g,'').substr(0,18) || ('m' + Date.now());
+}
+
+function initAddForm(){
+  var sw = $('swatches'), html = '';
+  for (var i=0;i<PALETTE.length;i++){
+    html += '<b data-c="'+PALETTE[i]+'" style="background:'+PALETTE[i]+'"'
+          + (i===0 ? ' class="sel"' : '') + '></b>';
+  }
+  sw.innerHTML = html;
+  var bs = sw.querySelectorAll('b');
+  for (var j=0;j<bs.length;j++){
+    bs[j].onclick = function(){
+      pickColour = this.getAttribute('data-c');
+      for (var k=0;k<bs.length;k++) bs[k].className = '';
+      this.className = 'sel';
+    };
+  }
+
+  var keys = [], sel = $('fArt'), opts = '';
+  for (var k2 in ART) if (ART.hasOwnProperty(k2)) keys.push(k2);
+  keys.sort();
+  for (var n=0;n<keys.length;n++) opts += '<option value="'+keys[n]+'">'+keys[n]+'</option>';
+  sel.innerHTML = opts;
+
+  $('btnAdd').onclick   = function(){ $('fErr').textContent = ''; $('addBox').classList.add('on'); $('fTitle').focus(); };
+  $('fCancel').onclick  = function(){ $('addBox').classList.remove('on'); };
+  $('fAdd').onclick     = submitMachine;
+}
+
+function submitMachine(){
+  var title = $('fTitle').value.trim();
+  var url   = $('fUrl').value.trim();
+  var tag   = $('fTag').value.trim();
+  var err   = $('fErr');
+
+  if (!title){ err.textContent = 'Needs a title.'; return; }
+  if (!/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(\/|$)/i.test(url)){
+    err.textContent = 'URL must be a full https:// address.'; return;
+  }
+  if (GAMES.length >= MAX_MACHINES){
+    err.textContent = 'Room is full at ' + MAX_MACHINES + ' machines.'; return;
+  }
+  var id = slug(title);
+  for (var i=0;i<GAMES.length;i++){
+    if (GAMES[i].id === id){ err.textContent = 'A machine already uses that name.'; return; }
+  }
+
+  var entry = {
+    id: id, title: title, tag: tag,
+    ext: url, path: '/' + id + '/',
+    screen: pickColour,
+    body:   mixHex(pickColour, '#140a2e', 0.55),
+    trim:   mixHex(pickColour, '#ffffff', 0.28),
+    art:    $('fArt').value
+  };
+
+  var loc = lsGet();
+  loc.push(entry);
+  if (!lsSet(loc)){
+    err.textContent = 'This browser will not let the page store anything.';
+    return;
+  }
+  location.reload();
+}
+
 function boot(){
   if (!renderer || !renderer.getContext()){
     $('boot').classList.add('gone');
     showList(true);
     $('btnClose').style.display = 'none';
+    initAddForm();
     $('note').innerHTML = 'This browser can\'t run the 3D pier, so here is every machine as a plain list.';
     return;
   }
+  initAddForm();
   start();
 }
 
