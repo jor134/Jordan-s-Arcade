@@ -132,6 +132,23 @@
   .rowbtns{display:flex;gap:8px}
   #addBox .fine{font-size:10px;color:var(--dim);line-height:1.7;margin:14px 0 0}
 
+  #list header .hrow{display:flex;gap:8px;flex-shrink:0}
+  #installBox{position:fixed;inset:0;z-index:56;background:rgba(11,5,26,.92);display:none;
+              align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+  #installBox.on{display:flex}
+  #installBox .sheet{width:min(420px,100%);background:var(--night);
+      border:1px solid rgba(255,238,221,.2);border-top:2px solid var(--cyan);padding:20px}
+  #installBox h3{font-family:var(--display);font-weight:800;font-size:30px;margin:0 0 14px;color:var(--cyan)}
+  #installBox .big{font-size:13px;padding:14px 16px;width:100%;margin-bottom:16px;
+                   border-color:var(--cyan);color:var(--cyan)}
+  #iSteps h5{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+             color:var(--gold);margin:0 0 8px}
+  #iSteps ol{margin:0 0 16px;padding-left:20px}
+  #iSteps li{font-size:13px;line-height:1.75;color:var(--bone);margin-bottom:3px}
+  #iSteps b{color:var(--cyan);font-weight:400}
+  #iSteps .alt{font-size:11px;color:var(--dim);line-height:1.7;margin:0 0 14px}
+  #installBox .fine{font-size:10px;color:var(--dim);line-height:1.7;margin:0 0 16px}
+
   #launch{position:fixed;inset:0;z-index:50;background:rgba(15,6,33,.95);display:none;
           align-items:center;justify-content:center;padding:24px}
   #launch.on{display:flex}
@@ -151,8 +168,8 @@
   <div id="sign">PIER NINE<span>OPEN LATE · ALL MACHINES ON FREE PLAY</span></div>
   <div id="tools">
     <button class="tool" id="btnVR" hidden>Enter VR</button>
-    <button class="tool" id="btnAdd">+ Machine</button>
-    <button class="tool" id="btnList">All games</button>
+    <button class="tool" id="btnInstall" hidden>Install</button>
+    <button class="tool" id="btnList">Games</button>
   </div>
 </div>
 
@@ -168,7 +185,10 @@
 </div></div>
 
 <div id="list" role="dialog" aria-label="All games">
-  <header><h2>All games</h2><button class="tool" id="btnClose">Back to the pier</button></header>
+  <header><h2>All games</h2><div class="hrow">
+    <button class="tool" id="btnAdd">+ Machine</button>
+    <button class="tool" id="btnClose">Back to the pier</button>
+  </div></header>
   <ol id="listItems"></ol>
   <div id="exportWrap" hidden>
     <h4>Make your drafts real</h4>
@@ -179,6 +199,14 @@
   </div>
   <p id="note"></p>
 </div>
+
+<div id="installBox"><div class="sheet">
+  <h3>Get the arcade as an app</h3>
+  <button class="tool big" id="iNow" hidden>Install now</button>
+  <div id="iSteps"></div>
+  <p class="fine" id="iCaveat"></p>
+  <div class="rowbtns"><button class="tool" id="iClose">Close</button></div>
+</div></div>
 
 <div id="addBox"><div class="sheet">
   <h3>Add a machine</h3>
@@ -255,13 +283,7 @@ var BUILT_IN = [
     screen:'#ff4d5e', body:'#c81f3c', trim:'#ff5f7a', art:'sight' },
   { id:'wildmoor',  title:'WILDMOOR LINKS', tag:'18-hole links golf · procedural',
     ext:'https://wildmoor-links.vercel.app/',   path:'/wildmoor/',
-    screen:'#7cff5a', body:'#2fae3a', trim:'#9dff6a', art:'links' },
-  { id:'soccrfable', title:'SoccrFable', tag:'Soccer fable',
-    ext:'https://soccer-fable.vercel.app/', path:'/soccrfable/',
-    screen:'#a6ff3c', body:'#567834', trim:'#bfff73', art:'pitch' },
-  { id:'f1vr', title:'F1VR', tag:'F1VR',
-    ext:'https://f1ble.vercel.app/', path:'/f1vr/',
-    screen:'#46e8ff', body:'#2b6e8c', trim:'#7aeeff', art:'track' }
+    screen:'#7cff5a', body:'#2fae3a', trim:'#9dff6a', art:'links' }
 ];
 
 /* Machines added from inside the arcade live in this browser only. Every
@@ -1541,6 +1563,117 @@ function submitMachine(){
   location.reload();
 }
 
+
+/* ==================================================================
+   11. INSTALL
+   Chrome fires beforeinstallprompt only for a site with a real fetch()
+   handler, which is what sw.js is for. iOS Safari never fires it at all,
+   so that platform gets manual steps and no button.
+   Menu paths churn between browser versions, so the wording points at
+   what to look for rather than reciting a menu tree that will rot.
+   ================================================================== */
+var deferredPrompt = null;
+
+function isStandalone(){
+  try {
+    if (window.matchMedia && matchMedia('(display-mode: standalone)').matches) return true;
+    if (window.matchMedia && matchMedia('(display-mode: fullscreen)').matches) return true;
+  } catch(e){}
+  return navigator.standalone === true;
+}
+
+function platform(){
+  var ua = navigator.userAgent, p = navigator.platform || '';
+  var iOS = /iPhone|iPod/.test(ua)
+         || /iPad/.test(ua)
+         || (/Mac/.test(p) && navigator.maxTouchPoints > 1);   // iPadOS reports as Mac
+  if (iOS) return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  if (/Firefox\//.test(ua)) return 'firefox';
+  if (/Edg\//.test(ua)) return 'chromium';
+  if (/Chrome\//.test(ua) && !/OPR\//.test(ua)) return 'chromium';
+  if (/Safari\//.test(ua)) return 'safari';
+  return 'other';
+}
+
+var STEPS = {
+  ios: { head:'On iPhone or iPad',
+    list:['Tap the <b>Share</b> button - the square with an arrow leaving it.',
+          'Scroll down and tap <b>Add to Home Screen</b>.',
+          'Tap <b>Add</b>.'],
+    alt:'iOS only offers this from its share sheet; no site can trigger it. If you do not see the option, you are probably in an in-app browser - open the page in Safari or Chrome first.' },
+  android: { head:'On Android',
+    list:['Open the browser menu - <b>three dots</b>, top right.',
+          'Tap <b>Install app</b>, or <b>Add to Home screen</b>.',
+          'Confirm.'],
+    alt:'If the Install now button above is showing, use that instead - it is the same thing in one tap.' },
+  chromium: { head:'On Windows, macOS or Linux (Chrome or Edge)',
+    list:['Look for the <b>install icon</b> at the right-hand end of the address bar - a monitor with a downward arrow.',
+          'Or open the browser menu and find <b>Install</b>.',
+          'Confirm, and the arcade gets its own window and a desktop icon.'],
+    alt:'' },
+  safari: { head:'On macOS (Safari)',
+    list:['Open the <b>File</b> menu.',
+          'Choose <b>Add to Dock</b>.',
+          'Name it and click Add.'],
+    alt:'Add to Dock needs Safari 17 or newer. On older Safari there is no install; use Chrome or Edge.' },
+  firefox: { head:'On Firefox',
+    list:[],
+    alt:'Firefox on desktop cannot install web apps. Open the arcade in Chrome, Edge or Safari, or just bookmark it. Firefox on Android can, via the three-dot menu.' },
+  other: { head:'Installing',
+    list:['Open your browser menu.',
+          'Look for <b>Install</b>, <b>Install app</b>, or <b>Add to Home Screen</b>.'],
+    alt:'Not every browser supports installing. Chrome, Edge, Safari and Samsung Internet all do.' }
+};
+
+function renderInstall(){
+  var k = platform(), st = STEPS[k] || STEPS.other, html = '<h5>' + st.head + '</h5>';
+  if (st.list.length){
+    html += '<ol>';
+    for (var i=0;i<st.list.length;i++) html += '<li>' + st.list[i] + '</li>';
+    html += '</ol>';
+  }
+  if (st.alt) html += '<p class="alt">' + st.alt + '</p>';
+  $('iSteps').innerHTML = html;
+  $('iNow').hidden = !deferredPrompt;
+  $('iCaveat').textContent = (LINK_MODE === 'proxy')
+    ? 'Installed, every machine opens full screen inside the app.'
+    : 'The arcade installs as an app, but each machine still opens in a browser tab because it lives on its own domain. Switch LINK_MODE to proxy to fix that.';
+}
+
+function initInstall(){
+  if (isStandalone()) return;                 // already an app; nothing to offer
+  $('btnInstall').hidden = false;
+  $('btnInstall').onclick = function(){ renderInstall(); $('installBox').classList.add('on'); };
+  $('iClose').onclick = function(){ $('installBox').classList.remove('on'); };
+  $('iNow').onclick = function(){
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice ? deferredPrompt.userChoice.then(done) : done();
+    function done(){ deferredPrompt = null; $('iNow').hidden = true; }
+  };
+}
+
+addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!isStandalone()) $('btnInstall').hidden = false;
+  if ($('installBox').classList.contains('on')) $('iNow').hidden = false;
+});
+
+addEventListener('appinstalled', function(){
+  deferredPrompt = null;
+  $('btnInstall').hidden = true;
+  $('installBox').classList.remove('on');
+});
+
+function registerSW(){
+  if (!('serviceWorker' in navigator)) return;
+  var ok = location.protocol === 'https:' || location.hostname === 'localhost';
+  if (!ok) return;                            // file:// and previews would throw
+  try { navigator.serviceWorker.register('sw.js').catch(function(){}); } catch(e){}
+}
+
 function boot(){
   if (!renderer || !renderer.getContext()){
     $('boot').classList.add('gone');
@@ -1551,6 +1684,8 @@ function boot(){
     return;
   }
   initAddForm();
+  initInstall();
+  registerSW();
   start();
 }
 

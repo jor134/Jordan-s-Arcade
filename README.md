@@ -86,9 +86,10 @@ the steps. The flat camera is a raised three-quarter chase at 45 degrees.
 
 ## Deploy (phase 1 — links out, current setting)
 
-Commit all six files to the repo root. Vercel picks it up as a static site.
+Commit all seven files to the repo root. Vercel picks it up as a static site.
 
     index.html
+    sw.js
     manifest.webmanifest
     icon-192.png
     icon-512.png
@@ -144,7 +145,40 @@ load, `watchPerf()` hides the `decor` group once - palms, string lights and
 lamp posts - and leaves the machines alone. Test on the oldest phone you care
 about and adjust the 0.024 threshold if it trips when it shouldn't.
 
+## Installing
+
+An **Install** button appears in the top bar, hiding itself once the arcade is
+already running as an app. It opens a sheet with a one-tap install where the
+browser allows it, and platform-correct manual steps where it does not.
+
+`sw.js` exists mainly to make that button possible. Chrome dropped the
+service-worker requirement for installing from the browser menu (v108 mobile,
+v112 desktop) but the prompt algorithm still requires a real `fetch()` handler,
+and empty handlers are deliberately ignored. No worker, no Install button.
+
+The worker is network-first, not cache-first. Cache-first would mean you push a
+change, Vercel deploys it, and you keep seeing the old arcade. It also answers
+for five shell paths only and never calls `respondWith()` for anything else, so
+proxied game paths pass straight through and cannot be cached by accident.
+
+iOS never fires `beforeinstallprompt`. Those users get Share > Add to Home
+Screen and no button, which is the only route Apple offers.
+
+Menu wording moves between browser versions. The copy in `STEPS` points at what
+to look for rather than reciting a menu tree, but check it occasionally.
+
+### Correction to the proxy-mode warning below
+
+An earlier note here said a game registering an absolute `/sw.js` would 404
+under proxy mode. It will not any more - it will now serve *this* worker.
+Registration succeeds, the game's own offline behaviour silently does nothing,
+and no error appears. Check for absolute service worker paths before flipping
+`LINK_MODE`.
+
 ## Controls
+
+`+ Machine` now lives inside the All games panel; the top bar holds Install,
+Games and Enter VR, which is all that fits on a 390px screen.
 
 Flat: WASD or arrow keys to walk, Enter/Space to play, L for the list, Esc to
 close it. Touch: drag to walk, tap a machine to walk to it, tap again to play.
