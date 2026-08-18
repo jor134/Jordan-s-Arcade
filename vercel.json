@@ -14,8 +14,6 @@
     { "source": "/dinger/:path*",    "destination": "https://dinger-derby-ten.vercel.app/:path*" },
     { "source": "/coldstore/:path*", "destination": "https://coldstore-five.vercel.app/:path*" },
     { "source": "/wildmoor/:path*",  "destination": "https://wildmoor-links.vercel.app/:path*" }
-    { "source": "/soccrfable/:path*", "destination": "https://soccer-fable.vercel.app/:path*" },
-    { "source": "/f1vr/:path*", "destination": "https://f1ble.vercel.app/:path*" },
   ],
   "headers": [
     {
