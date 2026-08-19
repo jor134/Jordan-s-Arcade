@@ -98,6 +98,31 @@ Commit all seven files to the repo root. Vercel picks it up as a static site.
 
 Machines open in a new tab. Each game keeps its own install prompt.
 
+## Keeping games inside the installed app
+
+This is what `LINK_MODE = 'proxy'` is for, and it is still OFF.
+
+In external mode a machine is on another domain, outside the manifest scope,
+so every launch leaves the app for a browser tab. Nothing can change that.
+
+In proxy mode a machine is same-origin and in scope, so `openGame()` does a
+plain `location.assign()` instead of `window.open('_blank')` and the game
+replaces the arcade in the same window. Full screen, no browser chrome, no tab.
+
+Coming back is the platform's own back: the button or gesture on Android, the
+back button on desktop, and a swipe in from the left edge on iOS. Your position
+is saved to `sessionStorage` on launch and restored on return, so you come back
+standing at the machine you just played.
+
+The first launch in an installed app shows a one-time sheet naming the right
+back gesture for that platform. It exists because iOS's edge swipe is real but
+invisible, and it does not fire at all under VoiceOver - a user on iOS with
+VoiceOver has no way back short of force-quitting. I cannot fix that from here;
+the fix would be a back control inside each game.
+
+Drafts always open in a new tab even in proxy mode, because no rewrite exists
+for them until you commit one.
+
 ## Phase 2 — one origin, one install
 
 `vercel.json` already proxies each game under a path on this domain:

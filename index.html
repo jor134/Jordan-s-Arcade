@@ -133,6 +133,15 @@
   #addBox .fine{font-size:10px;color:var(--dim);line-height:1.7;margin:14px 0 0}
 
   #list header .hrow{display:flex;gap:8px;flex-shrink:0}
+  #backHint{position:fixed;inset:0;z-index:57;background:rgba(11,5,26,.94);display:none;
+            align-items:center;justify-content:center;padding:20px}
+  #backHint.on{display:flex}
+  #backHint .sheet{width:min(400px,100%);background:var(--night);
+      border:1px solid rgba(255,238,221,.2);border-top:2px solid var(--gold);padding:20px}
+  #backHint h3{font-family:var(--display);font-weight:800;font-size:28px;margin:0 0 10px;color:var(--gold)}
+  #backHint p{font-size:14px;line-height:1.7;color:var(--bone);margin:0 0 14px}
+  #backHint .fine{font-size:11px;color:var(--dim);line-height:1.7}
+
   #installBox{position:fixed;inset:0;z-index:56;background:rgba(11,5,26,.92);display:none;
               align-items:center;justify-content:center;padding:20px;overflow-y:auto}
   #installBox.on{display:flex}
@@ -199,6 +208,15 @@
   </div>
   <p id="note"></p>
 </div>
+
+<div id="backHint"><div class="sheet">
+  <h3>One thing first</h3>
+  <p id="bhText"></p>
+  <p class="fine">The game replaces the arcade in this window, so it stays inside
+     the app instead of opening a browser tab. You will come back standing at the
+     same machine.</p>
+  <div class="rowbtns"><button class="tool" id="bhGo">Got it &mdash; play</button></div>
+</div></div>
 
 <div id="installBox"><div class="sheet">
   <h3>Get the arcade as an app</h3>
@@ -283,13 +301,7 @@ var BUILT_IN = [
     screen:'#ff4d5e', body:'#c81f3c', trim:'#ff5f7a', art:'sight' },
   { id:'wildmoor',  title:'WILDMOOR LINKS', tag:'18-hole links golf · procedural',
     ext:'https://wildmoor-links.vercel.app/',   path:'/wildmoor/',
-    screen:'#7cff5a', body:'#2fae3a', trim:'#9dff6a', art:'links' },
-  { id:'soccrfable', title:'SoccrFable', tag:'Soccer fable',
-    ext:'https://soccer-fable.vercel.app/', path:'/soccrfable/',
-    screen:'#a6ff3c', body:'#567834', trim:'#bfff73', art:'pitch' },
-  { id:'f1vr', title:'F1VR', tag:'F1VR',
-    ext:'https://f1ble.vercel.app/', path:'/f1vr/',
-    screen:'#46e8ff', body:'#2b6e8c', trim:'#7aeeff', art:'track' }
+    screen:'#7cff5a', body:'#2fae3a', trim:'#9dff6a', art:'links' }
 ];
 
 /* Machines added from inside the arcade live in this browser only. Every
@@ -1193,6 +1205,16 @@ function buildAvatar(){
    ================================================================== */
 var _home = layout(0);
 var px = _home.x, pz = _home.z + STAND + 0.6, py = _home.y;
+(function restoreSpot(){
+  try {
+    var r = JSON.parse(sessionStorage.getItem('piernine:at') || 'null');
+    if (r && isFinite(r.x) && isFinite(r.z)){ px = clampX(r.x); pz = clampZ(r.z); }
+  } catch(e){}
+  py = tierY(pz);
+})();
+function saveSpot(){
+  try { sessionStorage.setItem('piernine:at', JSON.stringify({ x:px, z:pz })); } catch(e){}
+}
 var mvX = 0, mvZ = 0, tgt = null, speed = 4.4, facing = Math.PI;
 var focusIdx = -1, inXR = false;
 var camDist = 13, camFov = 46;
@@ -1270,7 +1292,44 @@ function tap(e){
 
 function launch(){
   if (focusIdx < 0) return;
-  window.open(urlFor(cabs[focusIdx].g), '_blank', 'noopener');
+  openGame(cabs[focusIdx].g);
+}
+
+/* In proxy mode a game is same-origin and inside the manifest scope, so a
+   plain navigation keeps it in the installed window. window.open('_blank')
+   would spawn a browser tab even then, which is the whole problem. */
+function openGame(g){
+  var url = urlFor(g);
+  if (LINK_MODE !== 'proxy' || g.draft){
+    window.open(url, '_blank', 'noopener');
+    return;
+  }
+  saveSpot();
+  if (!backHintSeen() && isStandalone()){
+    showBackHint(function(){ location.assign(url); });
+  } else {
+    location.assign(url);
+  }
+}
+
+var BH_KEY = 'piernine:backhint';
+function backHintSeen(){
+  try { return localStorage.getItem(BH_KEY) === '1'; } catch(e){ return false; }
+}
+function showBackHint(go){
+  var k = platform();
+  var line = (k === 'ios')
+      ? 'Swipe in from the left edge of the screen to come back to the arcade.'
+      : (k === 'android')
+      ? 'Use the back button or back gesture to come back to the arcade.'
+      : 'Use the back button, or Alt+Left, to come back to the arcade.';
+  $('bhText').textContent = line;
+  $('backHint').classList.add('on');
+  $('bhGo').onclick = function(){
+    try { localStorage.setItem(BH_KEY, '1'); } catch(e){}
+    $('backHint').classList.remove('on');
+    go();
+  };
 }
 
 /* ==================================================================
@@ -1296,8 +1355,8 @@ function buildXR(){
   ctrl0.addEventListener('selectstart', xrSelect);
 
   $('lGo').onclick = function(){
-    if (pendingVR) window.open(urlFor(pendingVR), '_blank', 'noopener');
     $('launch').classList.remove('on');
+    if (pendingVR) openGame(pendingVR);
   };
 }
 
@@ -1643,8 +1702,8 @@ function renderInstall(){
   $('iSteps').innerHTML = html;
   $('iNow').hidden = !deferredPrompt;
   $('iCaveat').textContent = (LINK_MODE === 'proxy')
-    ? 'Installed, every machine opens full screen inside the app.'
-    : 'The arcade installs as an app, but each machine still opens in a browser tab because it lives on its own domain. Switch LINK_MODE to proxy to fix that.';
+    ? 'Machines open inside the app, full screen. Back returns you to the arcade, standing where you left off.'
+    : 'The arcade installs as an app, but each machine opens in a browser tab, because it lives on its own domain. LINK_MODE = proxy keeps them inside the app.';
 }
 
 function initInstall(){
