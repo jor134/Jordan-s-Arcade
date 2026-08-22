@@ -266,6 +266,9 @@
 var LINK_MODE = 'external';           // 'external' | 'proxy'
 
 var BUILT_IN = [
+  { id:'slot64',    title:'SLOT 64',        tag:'N64 emulator · load your own cartridges',
+    ext:'https://n-sixty4.vercel.app/',         path:'/slot64/',
+    screen:'#2fa8ff', body:'#123a6e', trim:'#5fc4ff', art:'cart' },
   { id:'nightshift',title:'NIGHT SHIFT',     tag:'Two-deck DJ rig · live synthesis, no samples',
     ext:'https://night-shift-three.vercel.app/', path:'/nightshift/',
     screen:'#e04dff', body:'#5a1a7a', trim:'#ff6ae0', art:'decks' },
@@ -375,7 +378,13 @@ var Z_MIN = -1.2 - (ROWS-1)*ROW_SP + 1.15;
 var Z_MAX = 4.2;
 
 /* ---- camera: raised three-quarter chase ---- */
-var PITCH = 45 * Math.PI / 180;
+/* Tiering barely helps a deep grid: raising a row also raises the cabinet in
+   front of it, so the chain nearly cancels out (0.82 tiers buy 0.15 units of
+   clearance over 0.48). Camera height is the lever, so pitch and minimum
+   distance grow with the row count. Three rows keep the original framing. */
+var PITCH_DEG  = Math.min(58, 45 + Math.max(0, ROWS - 3) * 5);
+var PITCH      = PITCH_DEG * Math.PI / 180;
+var MIN_DIST   = Math.min(13, 9 + Math.max(0, ROWS - 3) * 2);
 var CAM_LOOK_Y = 1.5;
 
 var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -675,6 +684,23 @@ var ART = {
     x.moveTo(cx-15,cy); x.lineTo(cx-4,cy); x.moveTo(cx+4,cy); x.lineTo(cx+15,cy);
     x.moveTo(cx,cy-15); x.lineTo(cx,cy-4); x.moveTo(cx,cy+4); x.lineTo(cx,cy+15); x.stroke();
   },
+  cart: function(x,w,h,t,g){
+    x.fillStyle='#0d1016'; x.fillRect(0,0,w,h);
+    x.fillStyle='#1b1d22'; x.fillRect(w*0.12, h*0.52, w*0.76, h*0.38);
+    x.fillStyle='#05070a'; x.fillRect(w*0.28, h*0.52, w*0.44, h*0.07);
+    var cyc = (t*0.5) % 1;
+    var drop = cyc < 0.4 ? cyc/0.4 : 1;
+    var cy = h*0.08 + drop*(h*0.44);
+    x.fillStyle = g.screen; x.fillRect(w*0.30, cy, w*0.40, h*0.30);
+    x.fillStyle = 'rgba(0,0,0,.45)'; x.fillRect(w*0.345, cy+h*0.05, w*0.31, h*0.11);
+    x.fillStyle = 'rgba(255,255,255,.25)'; x.fillRect(w*0.30, cy, w*0.40, 2);
+    if (cyc > 0.44 && cyc < 0.62){
+      x.fillStyle = 'rgba(214,240,255,'+(0.55*(1-(cyc-0.44)/0.18))+')';
+      x.fillRect(0,0,w,h);
+    }
+    x.fillStyle = 'rgba(0,0,0,.22)';
+    for (var i=0;i<h;i+=3) x.fillRect(0,i,w,1);
+  },
   decks: function(x,w,h,t,g){
     var beat = (t*2.1) % 1;
     var flash = Math.pow(1-beat, 5);
@@ -968,9 +994,10 @@ function buildRoom(){
   // tiered steps
   for (var b=1; b<ROWS; b++){
     var zEdge = -1.2 - b*ROW_SP + STAND + 0.9;
-    var step = new THREE.Mesh(new THREE.BoxGeometry(X_W*2-1.6, b*TIER, 14 + b*2),
+    var depth = zEdge - Z_FAR;                 // reach the far wall, never past it
+    var step = new THREE.Mesh(new THREE.BoxGeometry(X_W*2-1.6, b*TIER, depth),
       new THREE.MeshLambertMaterial({ map: carpetTex() }));
-    step.position.set(0, b*TIER/2, zEdge - (14 + b*2)/2);
+    step.position.set(0, b*TIER/2, zEdge - depth/2);
     scene.add(step);
     neonTube(0, b*TIER + 0.06, zEdge + 0.05, X_W*2-1.6, b===1 ? 0x21f0ff : 0xff2f9e, false);
   }
@@ -1227,7 +1254,7 @@ function reframe(){
   camFov = aspect < 0.8 ? 56 : 46;
   var tw = aspect < 0.8 ? 7.4 : 12.5;
   var d = tw / (2 * Math.tan(camFov * Math.PI / 360) * aspect);
-  camDist = Math.max(9, Math.min(20, d));
+  camDist = Math.max(MIN_DIST, Math.min(22, d));
   if (camera){ camera.fov = camFov; camera.updateProjectionMatrix(); }
   if (scene && scene.fog){ scene.fog.near = camDist * 0.7; scene.fog.far = camDist + 62; }
 }

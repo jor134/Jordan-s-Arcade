@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/slot64/:path*",    "destination": "https://n-sixty4.vercel.app/:path*" },
     { "source": "/nightshift/:path*", "destination": "https://night-shift-three.vercel.app/:path*" },
     { "source": "/shutoko/:path*",   "destination": "https://neon-shutoko.vercel.app/:path*" },
     { "source": "/touchline/:path*", "destination": "https://touchline-ecru.vercel.app/:path*" },
@@ -13,9 +14,7 @@
     { "source": "/turbo/:path*",     "destination": "https://turbo-critters.vercel.app/:path*" },
     { "source": "/dinger/:path*",    "destination": "https://dinger-derby-ten.vercel.app/:path*" },
     { "source": "/coldstore/:path*", "destination": "https://coldstore-five.vercel.app/:path*" },
-    { "source": "/wildmoor/:path*",  "destination": "https://wildmoor-links.vercel.app/:path*" },
-    { "source": "/soccrfable/:path*", "destination": "https://soccer-fable.vercel.app/:path*" },
-    { "source": "/f1vr/:path*", "destination": "https://f1ble.vercel.app/:path*" }
+    { "source": "/wildmoor/:path*",  "destination": "https://wildmoor-links.vercel.app/:path*" }
   ],
   "headers": [
     {

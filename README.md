@@ -41,7 +41,7 @@ Everything else follows: the row plan, room depth, window count, walk limits,
 step tiers, palms outside and the "OF nn" counter are all derived. Add a
 `vercel.json` rewrite too if you are on proxy mode.
 
-Colour is the part that does not scale. Twelve machines use twelve
+Colour is the part that does not scale. Thirteen machines use thirteen
 distinct neon hues and the gaps between them are closing; past about fourteen
 you will be picking near-duplicates. When that happens, stop assigning unique
 colours and group by genre instead - all the racers blue, all the shooters
@@ -61,9 +61,10 @@ the front rows. Ten games gives 4/3/3. Verified for 1 to 13 games and for a
 forced [5,5]: tiers stay aligned, every machine stays reachable, and the walk
 limit never reaches the wall cabinets.
 
-Twelve games gives 4/4/4 in the same room - the third row only needs a wider
-plan once you pass twelve, at which point a fourth row appears and the far
-wall, windows and palms all move back on their own.
+Thirteen games gives 4/3/3/3. The fourth row moved the far wall to -24.1, added
+a fifth window with its own palm and light shaft, lengthened both walls of
+switched-off cabinets, and stepped the camera back and up. None of that is
+hand-placed.
 
 Four is the practical ceiling per row. Five columns spans 14 units against a
 12.5-unit desktop frame, so a row stops fitting on screen.
@@ -149,9 +150,21 @@ the hall once and every machine launches standalone.
 
 ## Camera and floor plan
 
-    var PITCH      = 45 deg   // shallower than ~42 and the back row's
-                              // screens disappear behind the middle row
-    var CAM_LOOK_Y = 1.5
+    PITCH_DEG = 45 + (ROWS-3)*5, capped at 58
+    MIN_DIST  = 9  + (ROWS-3)*2, capped at 13
+    CAM_LOOK_Y = 1.5
+
+Both scale with depth. Three rows or fewer keep the original 45 degrees at 9
+units; a fourth row moves to 50/11, a fifth to 55/13.
+
+Tiering alone does not solve deep grids. Raising a row also raises the cabinet
+blocking it, so the chain almost cancels: going from TIER 0.48 to 0.82 - a
+3.3-unit staircase - buys 0.15 units of screen clearance. Camera height is the
+lever, which is why these two grow instead of TIER.
+
+Verified for every game count from 1 to 20: worst-case screen clearance stays
+positive, the camera stays above the 7.0 ceiling, and every tier step stops at
+the far wall.
     var COL_SP     = 3.5      // column spacing
     var ROW_SP     = 5.6      // row spacing
     var TIER       = 0.48     // height gained per row back
@@ -161,7 +174,7 @@ Distance and field of view are derived from the viewport aspect in
 
 ## Performance
 
-The scene builds ~209 meshes at twelve games. Repeated decor (palm fronds, festoon bulbs,
+The scene builds ~231 meshes at thirteen games. Repeated decor (palm fronds, festoon bulbs,
 cabinet edge trim, buttons, and all ~20 switched-off wall cabinets) is batched into `InstancedMesh`
 via `instanced()` rather than drawn individually; without that it was 330.
 
